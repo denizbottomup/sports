@@ -9,7 +9,9 @@ const CATEGORIES = ['news', 'squad', 'training', 'coach', 'transfer'];
 let client = null;
 
 export const summarizerEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY);
-const getClient = () => (client ||= new Anthropic({ timeout: 90000 }));
+// Org düzeyindeki (workspace'e bağlı olmayan) API anahtarları anthropic-workspace-id başlığı ister;
+// ANTHROPIC_WORKSPACE_ID tanımlıysa eklenir. Workspace'e bağlı anahtarlarda gerek yoktur.
+const getClient = () => (client ||= new Anthropic({ timeout: 90000, defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } : undefined }));
 
 const SCHEMA = {
   type: 'object',
