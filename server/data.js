@@ -183,10 +183,13 @@ function focusOpponents(teamId) {
   return [...new Map(picked.map(f => [f.opponent.id, f])).values()];
 }
 function pressSource(team, isOpponent) {
-  const terms = clubRegistry[team.id]?.pressTerms || [team.name, team.short].filter(Boolean);
+  const registered = clubRegistry[team.id]?.pressTerms;
+  const terms = registered || [team.name, team.short].filter(Boolean);
   const query = new URLSearchParams({ q: `${terms[0]} when:7d`, hl: 'tr', gl: 'TR', ceid: 'TR:tr' });
   return {
-    source: { id: `press-${team.id}`, teams: [team.id], name: `Türkçe basın · ${team.name}`, kind: 'Haber dizini', url: `https://news.google.com/rss/search?${query}`, publicUrl: `https://news.google.com/search?q=${encodeURIComponent(terms[0])}&hl=tr&gl=TR&ceid=TR:tr`, official: false, interval: isOpponent ? 60000 : 120000, language: 'tr' },
+    // Kayıtlı olmayan kulüplerde takım adı çoğu zaman şehir adıyla örtüşür (ör. "Erzurum BB");
+    // basın başlığının futbol bağlamı taşıması istenir ki belediye/şehir haberleri akışa girmesin.
+    source: { id: `press-${team.id}`, teams: [team.id], name: `Türkçe basın · ${team.name}`, kind: 'Haber dizini', url: `https://news.google.com/rss/search?${query}`, publicUrl: `https://news.google.com/search?q=${encodeURIComponent(terms[0])}&hl=tr&gl=TR&ceid=TR:tr`, official: false, interval: isOpponent ? 60000 : 120000, language: 'tr', ...(registered ? {} : { titleRequire: /spor|futbol|transfer|kadro|teknik direktor|hoca|taraftar|stadyum|hakem|puan|galibiyet|maglubiyet|deplasman|gol at|golle|macin|maci |maca |sakatl|milli ara/ }) },
     terms,
   };
 }

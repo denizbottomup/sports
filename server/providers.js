@@ -63,6 +63,7 @@ export function parseRss(xml, source, teamId, terms = []) {
     const title = text(item.title).replace(publisher ? new RegExp(` - ${String(publisher).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) : /$^/, '');
     if (terms.length && !terms.some(term => fold(title).includes(fold(term)))) return [];
     if (source.titleExclude && source.titleExclude.test(fold(title))) return [];
+    if (source.titleRequire && !source.titleRequire.test(fold(title))) return [];
     const $ = load(String(item.description || ''));
     const row = newsRecord({ title, url, publisher, summary: source.official ? $.text() : '', date: item.pubDate || item['dc:date'], image: item.image?.url || $('img').first().attr('src') }, source, teamId);
     return row ? [row] : [];

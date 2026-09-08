@@ -18,6 +18,12 @@ test('press stories require the opponent in the headline and are not official', 
   const rows = parseRss(xml, { id: 'press', name: 'Basın', official: false }, '2250', ['Sporting']);
   assert.equal(rows.length, 1); assert.equal(rows[0].title, 'Sporting hazırlıkları'); assert.equal(rows[0].source, 'Yayıncı'); assert.equal(rows[0].official, false);
 });
+test('press titleRequire keeps football context and drops city news', () => {
+  const xml = '<rss><channel><item><title>Erzurumspor taraftarina cagri</title><link>https://news.google.com/rss/articles/a</link></item><item><title>Erzurum Buyuksehir Belediyesinden dolandiricilik uyarisi</title><link>https://news.google.com/rss/articles/b</link></item></channel></rss>';
+  const source = { id: 'press-176', name: 'Basın', official: false, titleRequire: /spor|futbol|taraftar/ };
+  const rows = parseRss(xml, source, '176', ['Erzurum']);
+  assert.deepEqual(rows.map(r => r.title), ['Erzurumspor taraftarina cagri']);
+});
 test('image proxy admits only known public image hosts and strips executable URLs', () => {
   assert.equal(mediaAllowed('https://a.espncdn.com/i/teamlogos/soccer/500/432.png'), true);
   for (const url of ['http://127.0.0.1/image', 'https://a.espncdn.com.evil.example/a', 'https://user:pass@a.espncdn.com/a', 'https://a.espncdn.com:8443/a', 'file:///etc/passwd']) assert.equal(mediaAllowed(url), false);
