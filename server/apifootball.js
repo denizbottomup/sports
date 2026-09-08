@@ -31,12 +31,12 @@ export function matchTeam(name, candidates) {
 }
 
 // Ad araması: doğrudan search parametresi 3+ harf ister; sonuçlardan en iyi eşleşme seçilir.
-export async function findTeamId(teamName) {
+export async function findTeam(teamName) {
   const query = fold(teamName).split(/[^a-z0-9]+/).filter(t => t.length > 2).sort((a, b) => b.length - a.length)[0];
   if (!query) return null;
   const rows = await apiGet(`/teams?search=${encodeURIComponent(query)}`);
   const best = matchTeam(teamName, rows.map(r => r.team));
-  return best ? best.id : null;
+  return best ? { id: best.id, name: best.name } : null;
 }
 
 export function parseSquad(rows) {

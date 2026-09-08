@@ -2,13 +2,13 @@ import { mkdir, readFile, writeFile, rename, readdir, stat, unlink } from 'node:
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { DATA_DIR, MEDIA_DIR } from './paths.js';
-import { idFor, mediaAllowed, parseFixtures, parseRss, parseEspnNews, parseEspnRoster } from './providers.js';
+import { fold, idFor, mediaAllowed, parseFixtures, parseRss, parseEspnNews, parseEspnRoster } from './providers.js';
 import { articleAllowed, exclusionReason, parseArticle, makeReading, readableNews, parseMatchDetails, parseTrtBroadcast, parseRefereeReport } from './reading.js';
 import { clubRegistry, curatedMatchSources } from './registry.js';
 import { trackedTeamMap, favoriteTeamIds, languagesInUse, accounts, publicUser } from './store.js';
 import { teamById } from './teams.js';
 import { summarizerEnabled, summarizeArticle } from './summarize.js';
-import { apiFootballEnabled, findTeamId, fetchSquad } from './apifootball.js';
+import { apiFootballEnabled, findTeam, fetchSquad } from './apifootball.js';
 
 export { DATA_DIR, MEDIA_DIR };
 export const changes = new EventEmitter();
@@ -23,7 +23,7 @@ const europeanCompetitions = [
 const MAX_TRACKED = 24;
 const sourceMap = new Map(), validators = new Map(), active = new Set(), imageJobs = new Map();
 let imageQueue = Promise.resolve(), saveQueue = Promise.resolve();
-export let state = { version: 3, teams: { [DEFAULT_TEAM.id]: DEFAULT_TEAM }, fixtures: [], news: [], rosters: {}, readings: {}, summaries: {}, apiFootballIds: {}, matchDetails: {}, updatedAt: null };
+export let state = { version: 3, teams: { [DEFAULT_TEAM.id]: DEFAULT_TEAM }, fixtures: [], news: [], rosters: {}, readings: {}, summaries: {}, apiFootballIds: {}, apiFootballNames: {}, matchDetails: {}, updatedAt: null };
 
 function tracked() {
   const map = trackedTeamMap();
@@ -38,8 +38,11 @@ function dossierIds() {
   return new Set(favorites.length ? favorites : [DEFAULT_TEAM.id]);
 }
 const register = source => {
-  if (!sourceMap.has(source.id)) sourceMap.set(source.id, { ...source, status: 'pending', lastCheckedAt: null, lastSuccessAt: null, error: null, failures: 0, nextCheck: 0 });
-  return sourceMap.get(source.id);
+  const existing = sourceMap.get(source.id);
+  if (!existing) { sourceMap.set(source.id, { ...source, status: 'pending', lastCheckedAt: null, lastSuccessAt: null, error: null, failures: 0, nextCheck: 0 }); return sourceMap.get(source.id); }
+  // Kaynak konfigürasyonu (url, ad, filtreler) güncellenebilir; sağlık/backoff durumu korunur.
+  Object.assign(existing, source);
+  return existing;
 };
 function pruneSources(trackedIds) {
   for (const [id, source] of sourceMap) if (source.teams && !source.teams.some(teamId => trackedIds.has(teamId))) { sourceMap.delete(id); validators.delete(id); }
@@ -182,14 +185,20 @@ function focusOpponents(teamId) {
   const picked = [next.find(f => f.competition !== domestic), next.find(f => f.competition === domestic)].filter(Boolean);
   return [...new Map(picked.map(f => [f.opponent.id, f])).values()];
 }
+const PRESS_CONTEXT = /spor|futbol|transfer|kadro|teknik direktor|hoca|taraftar|stadyum|hakem|puan|galibiyet|maglubiyet|deplasman|gol at|golle|macin|maci |maca |sakatl|milli ara/;
 function pressSource(team, isOpponent) {
   const registered = clubRegistry[team.id]?.pressTerms;
-  const terms = registered || [team.name, team.short].filter(Boolean);
+  // ESPN takım adları Türk basınının kullandığı kulüp adından sapabilir ("Erzurum BB" vs
+  // "BB Erzurumspor"); API-Football eşleşmesinden gelen ad varsa sorgu ve başlık filtresi
+  // için en ayırt edici (en uzun) kelime kullanılır.
+  const baseName = state.apiFootballNames?.[team.id] || team.name;
+  const distinctive = fold(baseName).split(/[^a-z0-9]+/).filter(t => t.length > 3).sort((a, b) => b.length - a.length)[0];
+  const terms = registered || [distinctive || team.name];
   const query = new URLSearchParams({ q: `${terms[0]} when:7d`, hl: 'tr', gl: 'TR', ceid: 'TR:tr' });
   return {
     // Kayıtlı olmayan kulüplerde takım adı çoğu zaman şehir adıyla örtüşür (ör. "Erzurum BB");
     // basın başlığının futbol bağlamı taşıması istenir ki belediye/şehir haberleri akışa girmesin.
-    source: { id: `press-${team.id}`, teams: [team.id], name: `Türkçe basın · ${team.name}`, kind: 'Haber dizini', url: `https://news.google.com/rss/search?${query}`, publicUrl: `https://news.google.com/search?q=${encodeURIComponent(terms[0])}&hl=tr&gl=TR&ceid=TR:tr`, official: false, interval: isOpponent ? 60000 : 120000, language: 'tr', ...(registered ? {} : { titleRequire: /spor|futbol|transfer|kadro|teknik direktor|hoca|taraftar|stadyum|hakem|puan|galibiyet|maglubiyet|deplasman|gol at|golle|macin|maci |maca |sakatl|milli ara/ }) },
+    source: { id: `press-${team.id}`, teams: [team.id], name: `Türkçe basın · ${team.name}`, kind: 'Haber dizini', url: `https://news.google.com/rss/search?${query}`, publicUrl: `https://news.google.com/search?q=${encodeURIComponent(terms[0])}&hl=tr&gl=TR&ceid=TR:tr`, official: false, interval: isOpponent ? 60000 : 120000, language: 'tr', ...(registered ? {} : { titleRequire: PRESS_CONTEXT }) },
     terms,
   };
 }
@@ -224,8 +233,11 @@ async function apiFootballRoster(team, favoriteId) {
   apiFootballChecks.set(team.id, Date.now() + 4 * 3600000);
   try {
     state.apiFootballIds ||= {};
+    state.apiFootballNames ||= {};
     if (state.apiFootballIds[team.id] === undefined) {
-      state.apiFootballIds[team.id] = await findTeamId(team.name);
+      const found = await findTeam(team.name);
+      state.apiFootballIds[team.id] = found?.id ?? null;
+      if (found?.name) state.apiFootballNames[team.id] = found.name;
       persist();
     }
     const apiId = state.apiFootballIds[team.id];
@@ -372,12 +384,15 @@ export async function startData() {
   await mkdir(MEDIA_DIR, { recursive: true });
   try {
     const saved = JSON.parse(await readFile(path.join(DATA_DIR, 'snapshot.json'), 'utf8'));
-    if (saved.version === 3 && saved.teams && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = { summaries: {}, apiFootballIds: {}, ...saved };
+    if (saved.version === 3 && saved.teams && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = { summaries: {}, apiFootballIds: {}, apiFootballNames: {}, ...saved };
     else if (saved.version === 2 && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) {
       const { team, ...rest } = saved;
       state = { ...rest, version: 3, teams: { [team.id]: { ...DEFAULT_TEAM, ...team } } };
     }
   } catch { /* A new deployment can start without a previous snapshot. */ }
+  // Şehir adıyla eşleşip akışa girmiş eski belediye/şehir haberlerini temizle (kayıtlı
+  // kulüplerin basın terimleri bilinçli olduğundan onlara dokunulmaz).
+  state.news = state.news.filter(n => !(n.sourceId?.startsWith('press-') && !clubRegistry[n.teamId]?.pressTerms && !PRESS_CONTEXT.test(fold(`${n.title} ${n.summary || ''}`))));
   await refreshAll();
   const timer = setInterval(() => { void refreshFixtures(); void refreshNews(); void refreshRosters(); void refreshMatchDetails(); void refreshReadings(); }, 10000);
   timer.unref();
