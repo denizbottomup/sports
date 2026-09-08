@@ -14,22 +14,22 @@ export function mediaAllowed(value) {
 export function teamFrom(raw) {
   return { id: String(raw.id), name: raw.displayName || raw.name, short: raw.shortDisplayName || raw.displayName || raw.name, abbreviation: raw.abbreviation || '', logo: safeUrl(raw.logos?.[0]?.href || raw.logo), color: /^[0-9a-f]{6}$/i.test(raw.color) ? `#${raw.color}` : '#205240' };
 }
-export function parseFixtures(data, league, now = Date.now()) {
+export function parseFixtures(data, league, teamId, now = Date.now()) {
   if (!Array.isArray(data.events)) throw new Error('Fikstür yanıtı beklenen biçimde değil');
   return data.events.flatMap(event => {
     const c = event.competitions?.[0];
-    const own = c?.competitors?.find(t => String(t.team?.id) === '432');
-    const other = c?.competitors?.find(t => String(t.team?.id) !== '432');
+    const own = c?.competitors?.find(t => String(t.team?.id) === String(teamId));
+    const other = c?.competitors?.find(t => String(t.team?.id) !== String(teamId));
     const status = c?.status?.type;
     if (!own || !other || !Number.isFinite(Date.parse(event.date)) || status?.completed || Date.parse(event.date) < now - 3 * 3600000) return [];
-    return [{ id: String(event.id), date: event.date, dateConfirmed: !/TBD|postponed|canceled/i.test(`${status?.detail} ${status?.name}`), status: status?.state === 'in' ? 'live' : /postponed/i.test(status?.name) ? 'postponed' : 'scheduled', competition: league.id, competitionName: league.name, home: own.homeAway === 'home', team: teamFrom(own.team), opponent: teamFrom(other.team), venue: c.venue?.fullName || null, round: event.week?.text || c.groups?.name || '', source: 'ESPN', sourceUrl: safeUrl(event.links?.find(l => l.href?.startsWith('https:'))?.href) || `https://www.espn.com/soccer/team/fixtures/_/id/432/galatasaray` }];
+    return [{ id: String(event.id), date: event.date, dateConfirmed: !/TBD|postponed|canceled/i.test(`${status?.detail} ${status?.name}`), status: status?.state === 'in' ? 'live' : /postponed/i.test(status?.name) ? 'postponed' : 'scheduled', competition: league.id, competitionName: league.name, home: own.homeAway === 'home', team: teamFrom(own.team), opponent: teamFrom(other.team), venue: c.venue?.fullName || null, round: event.week?.text || c.groups?.name || '', source: 'ESPN', sourceUrl: safeUrl(event.links?.find(l => l.href?.startsWith('https:'))?.href) || `https://www.espn.com/soccer/team/fixtures/_/id/${teamId}` }];
   });
 }
 export function categoryOf(title) {
   const t = fold(title);
   if (/sakat|saglik|cezali|lesao|lesionado|boletim clinico|injur|suspens/.test(t)) return 'squad';
   if (/antrenman|hazirlik|treino|prepara|trabalho/.test(t)) return 'training';
-  if (/borges|buruk|teknik direktor|conferencia|declarac/.test(t)) return 'coach';
+  if (/teknik direktor|basin toplantis|conferencia de imprensa|declarac|antrenor/.test(t)) return 'coach';
   if (/transfer|reforca|contrata|hos geldin|imza/.test(t)) return 'transfer';
   return 'news';
 }
@@ -47,12 +47,12 @@ export function parseRss(xml, source, teamId, terms = []) {
   return items.flatMap(item => {
     const url = safeUrl(item.link);
     if (!url) return [];
-    if (source.id === 'gs-news' && (!url.includes('/haber/futbol/') || /kadin-futbol|akademi|altyapi/.test(url))) return [];
-    if (source.id === 'scp-news' && !url.includes('/futebol/equipa-principal/')) return [];
+    if (source.urlRequire && !url.includes(source.urlRequire)) return [];
+    if (source.urlExclude && source.urlExclude.test(url)) return [];
     const publisher = typeof item.source === 'object' ? item.source['#text'] : item.source;
     const title = text(item.title).replace(publisher ? new RegExp(` - ${String(publisher).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) : /$^/, '');
     if (terms.length && !terms.some(term => fold(title).includes(fold(term)))) return [];
-    if (teamId === '2250' && /sporting (kansas|gijon|huelva)|futsal|basketbol|futebol feminino/i.test(fold(title))) return [];
+    if (source.titleExclude && source.titleExclude.test(fold(title))) return [];
     const $ = load(String(item.description || ''));
     const row = newsRecord({ title, url, publisher, summary: source.official ? $.text() : '', date: item.pubDate || item['dc:date'], image: item.image?.url || $('img').first().attr('src') }, source, teamId);
     return row ? [row] : [];
@@ -69,7 +69,7 @@ export function parseSportingNews(html, source) {
     const date = url.match(/\/(20\d{2}-\d{2}-\d{2})\//)?.[1];
     const style = card.find('.noticias__photo').attr('style') || '';
     const image = card.find('img').first().attr('src') || style.match(/url\(['"]?(.*?)['"]?\)/)?.[1];
-    const row = newsRecord({ title: card.find('.itemList__title').text() || a.text(), summary: card.find('.itemList__description').text(), url, image, date: date ? `${date}T12:00:00Z` : null, datePrecision: 'day' }, source, '2250');
+    const row = newsRecord({ title: card.find('.itemList__title').text() || a.text(), summary: card.find('.itemList__description').text(), url, image, date: date ? `${date}T12:00:00Z` : null, datePrecision: 'day' }, source, source.teamId);
     if (row) rows.push(row);
   });
   if (!rows.length) throw new Error('Sporting haber listesi okunamadı');

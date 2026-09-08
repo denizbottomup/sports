@@ -10,9 +10,9 @@ Servis ayarları:
 - `PORT` Railway tarafından sağlanır; Docker varsayılanı `8080`.
 - Healthcheck `/healthz`.
 - Kalıcı volume `/app/data` konumuna bağlanır; Dockerfile `DATA_DIR=/app/data` ayarlar.
-- Mevcut veri kaynakları için ek secret gerekmez.
+- `GOOGLE_CLIENT_ID` ortam değişkeni Railway servis ayarlarında tanımlanır (Google OAuth Web istemci kimliği); canlı alan adı Google Cloud Console'da Authorized JavaScript origins listesine eklenir. Veri kaynakları için başka secret gerekmez.
 
-Kalıcı dizin haber/fikstür anlık görüntüsünü ve kaynak görsellerini saklar. Görsel önbelleği 256 MB ve 30 günlük saklama sınırıyla temizlenir. Bu sürüm tek replika içindir; toplayıcı süreç sunucuyla birlikte çalışır.
+Kalıcı dizin haber/fikstür anlık görüntüsünü, kullanıcı hesaplarını (`users.json`), takım dizinini (`teams.json`) ve kaynak görsellerini saklar. Görsel önbelleği 256 MB ve 30 günlük saklama sınırıyla temizlenir. Bu sürüm tek replika içindir; toplayıcı süreç sunucuyla birlikte çalışır.
 
 Builder ve sağlık kontrolü ayarları Railway servis panelinde tutulur. `main` dalına push otomatik dağıtımı tetikler.
 
@@ -25,4 +25,4 @@ curl --fail http://localhost:8080/api/dashboard
 
 Yayın sonrası sağlık kontrolü, API'deki ilk maç, haber kaynakları ve gerçek görseller canlı adreste doğrulanmalıdır. Sağlık kontrolü süreç durumunu ölçer; kaynakların ilk yüklenmesi ayrıca beklenmelidir. Bilinmeyen asset adresleri 404 dönmelidir. Haber kaydetme ve mobil görünüm tarayıcıda kontrol edilmelidir.
 
-Geri alma Railway panelinden önceki başarılı deployment yeniden dağıtılarak yapılır. Hesap sistemi henüz yoktur; kaydedilen haberler tarayıcıda tutulur.
+Geri alma Railway panelinden önceki başarılı deployment yeniden dağıtılarak yapılır. Hesaplar ve takım tercihleri volume üzerindeki `users.json` dosyasında durur; kaydedilen haberler tarayıcıda tutulur.

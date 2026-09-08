@@ -11,17 +11,19 @@
 
 ## Sonraki: Kullanıcı hesabı ve takım seçimi
 
-- Kayıt, giriş, çıkış, oturum yenileme ve hesap kurtarma.
-- İlk girişte lig arama → takım seçimi → bildirim tercihleri.
-- Takım tercihini hesapta saklama, cihazlar arasında eşitleme ve ayarlardan değiştirme.
-- Kaydedilen haberleri ve okuma durumunu kullanıcı hesabına bağlama.
-- Oturum ve kullanıcı verilerine erişim kontrolleri; hesap silme.
+- [x] Google ile giriş, çıkış ve 30 günlük oturum (httpOnly çerez).
+- [x] İlk girişte takım arama → favori takım seçimi → en fazla 5 takımlık takip listesi.
+- [x] Takım tercihini hesapta saklama, cihazlar arasında eşitleme ve kenar çubuğundan değiştirme.
+- [ ] Bildirim tercihleri.
+- [ ] Kaydedilen haberleri ve okuma durumunu kullanıcı hesabına bağlama (şimdilik tarayıcıda).
+- [ ] Hesap silme ve oturumların toplu kapatılması.
 
 ## Veri kapsamının genişletilmesi
 
-- Türkiye + İngiltere, İspanya, Almanya, İtalya, Fransa ve Portekiz kulüpleri.
+- [x] Takım dizini: Türkiye + İngiltere, İspanya, Almanya, İtalya, Fransa ve Portekiz kulüpleri (ESPN lig listeleri); fikstür/kadro/basın dizini bu takımlar için dinamik toplanır.
+- [ ] Her kulüp için resmî kaynak kaydının genişletilmesi (`server/registry.js`); bugün Galatasaray ve Sporting CP kayıtlı.
 - Şampiyonlar Ligi, Avrupa Ligi, Konferans Ligi ve ön elemeler.
-- Her kulüp için resmî kaynak kaydı, branş ayrımı ve kaynak sağlık takibi.
+- Branş ayrımı ve kulüp başına kaynak sağlık takibinin genişletilmesi.
 - Lisanslı fikstür/kadro servisi, müsabakaya özel sakatlık/ceza doğrulaması.
 - Kaynak bazında gecikme ölçümü, haber tekrarlarını birleştirme, Türkçe çeviri.
 

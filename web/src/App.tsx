@@ -1,5 +1,5 @@
-import LiveApp from "./sports/LiveApp";
+import AuthGate from "./sports/AuthGate";
 
 export default function App() {
-  return <LiveApp />;
+  return <AuthGate />;
 }

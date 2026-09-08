@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exclusionReason, articleAllowed, parseArticle, makeReading, readableNews, parseMatchDetails, parseTrtBroadcast, parseRefereeReport } from './reading.js';
 import { formatDate, formatHour } from '../web/src/sports/time.mjs';
-const fixture = { id: '401915447', date: '2026-09-09T19:00Z', opponent: { id: '2250' }, sourceUrl: 'https://www.espn.com/soccer/match/_/gameId/401915447' };
+const fixture = { id: '401915447', date: '2026-09-09T19:00Z', home: false, team: { id: '432', name: 'Galatasaray', short: 'Galatasaray' }, opponent: { id: '2250', name: 'Sporting CP', short: 'Sporting CP' }, sourceUrl: 'https://www.espn.com/soccer/match/_/gameId/401915447' };
+const refereeSpec = { url: 'https://beinsports.com.tr/haber/galatasaray-sporting-macinin-hakemi-belli-oldu', name: 'beIN SPORTS · Hakem ataması', date: '2026-09-09', mustInclude: ['9 Eylül', 'Sporting'] };
 test('clickbait, fixture questions and ticket sales stay out of news, factual injury news survives', () => {
   for (const title of ["Sporting'de Galatasaray maçı öncesi flaş karar!", 'Herkesi şaşırtacak karar...', 'Sporting maçı ne zaman, hangi kanalda?', 'Sporting Galatasaray maçının hakemi belli oldu', 'Galatasaray maç kadrosunda kimler var?', 'Sporting biletleri satışta']) assert.ok(exclusionReason({ title }), title);
   assert.equal(exclusionReason({title: 'Ibrahima Ba aldığı darbe nedeniyle kadroya alınmadı'}), null);
@@ -30,8 +31,8 @@ test('fixture facts validate event identity and broadcaster region without guess
  const facts=parseMatchDetails(data,fixture);assert.equal(facts.referee,null);assert.equal(facts.broadcasts.length,1);assert.equal(facts.broadcasts[0].country,'US');assert.equal(facts.broadcasts[0].access,'unknown');
  assert.equal(parseTrtBroadcast('<body>Sporting CP - Galatasaray UEFA Şampiyonlar Ligi Maçı 9 Eylül Çarşamba günü saat 22.00’de TRT 1 ekranlarında</body>',fixture).channel,'TRT 1');
  assert.throws(()=>parseTrtBroadcast('<body>Sporting CP - Galatasaray 7 Eylül TRT 1</body>',fixture));
- assert.throws(()=>parseRefereeReport('<body>9 Eylül Sporting hakem Espen Eskas yönetecek</body>',{...fixture,id:'later-match'}));
- assert.equal(parseRefereeReport('<body>9 Eylül Sporting maçını hakem Espen Eskas yönetecek</body>',fixture).referee,'Espen Eskas');
+ assert.throws(()=>parseRefereeReport('<body>9 Eylül Sporting hakem Espen Eskas yönetecek</body>',{...fixture,date:'2026-09-16T19:00Z'},refereeSpec));
+ assert.equal(parseRefereeReport('<body>9 Eylül Sporting maçını hakem Espen Eskas yönetecek</body>',fixture,refereeSpec).referee,'Espen Eskas');
 });
 test('local kickoff handles date rollover and daylight saving time',()=>{
  assert.equal(formatHour('2026-09-09T19:00Z','Europe/Istanbul'),'22:00');

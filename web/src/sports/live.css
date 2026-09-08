@@ -38,3 +38,43 @@
 .tl-modal .detail-photo { height:180px; width:100%; object-fit:cover; }
 .tl-modal .detail-title { font-size:24px; line-height:1.4; }
 @media (max-width:680px) { .tl-modal .detail-photo { height:130px; } .tl-modal .detail-title { font-size:21px; } }
+
+/* Giriş ve takım seçimi */
+.auth-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#f7f8f5 0%,#eef2e7 55%,#e4ecdd 100%);padding:28px;font-family:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#22362f;font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.auth-card{width:100%;max-width:430px;background:#fff;border:1px solid #e4e9df;border-radius:15px;padding:37px 34px 31px;box-shadow:0 14px 44px #17402a14;display:flex;flex-direction:column;gap:14px}
+.auth-brand{font-size:26px!important;margin-bottom:8px;cursor:default}
+.auth-card h1{font-size:29px;font-weight:550;letter-spacing:-1.2px;line-height:1.18;color:#293f32;margin:0}
+.auth-card>p{font-size:12px;line-height:1.75;color:#7c8974;margin:0}
+.auth-card>small{font-size:10px;line-height:1.7;color:#98a18e;border-top:1px solid #eef0e9;padding-top:15px;margin-top:5px}
+.auth-loading{font-size:12px;color:#8a9385}
+.auth-error{font-size:11px;line-height:1.6;color:#a15b26;background:#fff3dc;border:1px solid #ecdab5;border-radius:7px;padding:10px 12px;margin:0}
+.google-button{display:flex;justify-content:center;min-height:44px;margin:9px 0 3px}
+.onboard-card{max-width:480px}
+.onboard-section{display:flex;flex-direction:column;gap:4px}
+.onboard-section .sidebar-section-title{padding:0;margin:9px 0 7px}
+.onboard-section .count-pill{background:#eef2e6;color:#5c7a4c;border-radius:5px;font-size:9px;padding:3px 6px}
+.team-search{display:flex;flex-direction:column;gap:8px}
+.team-search .live-search{margin:0}
+.team-results{display:flex;flex-direction:column;gap:3px;max-height:238px;overflow-y:auto;border:1px solid #e8ece2;border-radius:9px;padding:5px;scrollbar-width:thin}
+.team-result{display:flex;align-items:center;gap:11px;border:0;background:none;border-radius:7px;padding:9px 10px;text-align:left;color:#3a5140}
+.team-result:hover{background:#f3f6ee}
+.team-result.picked{opacity:.5}
+.team-result img{width:24px;height:27px;object-fit:contain;flex-shrink:0}
+.team-result-blank{width:24px;height:27px;background:#edf1e9;border-radius:50%;flex-shrink:0}
+.team-result>span:not(.team-result-blank){display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.team-result strong{font-size:12px;font-weight:600}
+.team-result small{font-size:10px;color:#8b9680}
+.team-result>svg{color:#87a06c;flex-shrink:0}
+.team-search-note{font-size:11px;color:#8b9680;margin:2px 0 0}
+.team-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.team-chip{display:flex;align-items:center;gap:8px;background:#f6f8f2;border:1px solid #e3e8dc;border-radius:8px;padding:7px 9px}
+.team-chip img{width:20px;height:23px;object-fit:contain}
+.team-chip strong{font-size:11px;font-weight:600;color:#33503b}
+.team-chip small{font-size:10px;color:#8b9680;display:block}
+.team-chip>span{display:flex;flex-direction:column;min-width:0}
+.favorite-chip{padding:11px 12px;background:#eef4e7;border-color:#d6e2c8}
+.favorite-chip img{width:29px;height:33px}
+.onboard-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:8px}
+.profile-photo{width:29px;height:29px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.profile-identity{flex:1;min-width:0}
+.profile-identity strong,.profile-identity small{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}

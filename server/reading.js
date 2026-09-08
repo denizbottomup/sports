@@ -51,18 +51,21 @@ export function parseMatchDetails(data, fixture) {
   const official = data.gameInfo?.officials?.find(o => /referee|hakem/i.test(o.type?.name || o.position?.name || '')) || data.gameInfo?.officials?.[0];
   return { referee: official?.displayName || official?.fullName || null, broadcasts: (competition?.broadcasts || []).flatMap(b => b.region && b.media?.shortName ? [{ country: b.region.toUpperCase(), channel: b.media.shortName, access: 'unknown', source: 'ESPN', sourceUrl: fixture.sourceUrl }] : []), source: 'ESPN', sourceUrl: fixture.sourceUrl, checkedAt: new Date().toISOString() };
 }
+const escapeRe = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export function parseTrtBroadcast(html, fixture) {
   const $ = load(html); $('script,style').remove();
   const body = text($('body').text());
   const day = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', timeZone: 'Europe/Istanbul' }).format(new Date(fixture.date));
-  const match = body.match(/Sporting CP\s*-\s*Galatasaray.{0,180}/)?.[0] || '';
-  if (fixture.opponent.id !== '2250' || !match.includes(day) || !match.includes('TRT 1')) throw new Error('Bu maç için TRT yayın duyurusu doğrulanamadı');
+  const home = fixture.home ? fixture.team : fixture.opponent, away = fixture.home ? fixture.opponent : fixture.team;
+  const match = body.match(new RegExp(`(?:${escapeRe(home.name)}|${escapeRe(home.short)})\\s*-\\s*(?:${escapeRe(away.name)}|${escapeRe(away.short)}).{0,180}`))?.[0] || '';
+  if (!match.includes(day) || !match.includes('TRT 1')) throw new Error('Bu maç için TRT yayın duyurusu doğrulanamadı');
   return { country: 'TR', channel: 'TRT 1', access: fixture.date >= '2024-07-01' && fixture.date < '2027-07-01' ? 'free' : 'unknown', accessSourceUrl: 'https://www.trthaber.com/haber/spor/sampiyonlar-ligi-avrupa-ligi-ve-konferans-ligi-trtde-832018.html', note: 'Türkiye yayını. Yurt dışı ve uydu erişimi bölgesel kısıtlamalara tabi olabilir.', source: 'TRT 1 · yayın duyurusu', sourceUrl: 'https://www.trt1.com.tr/', checkedAt: new Date().toISOString() };
 }
-export function parseRefereeReport(html, fixture) {
+// spec, registry.js içindeki maça özel künye kaydından gelir: { url, name, date, mustInclude }.
+export function parseRefereeReport(html, fixture, spec) {
   const $ = load(html); $('script,style').remove(); const body = text($('body').text());
-  if (fixture.id !== '401915447' || fixture.date.slice(0,10) !== '2026-09-09' || !body.includes('9 Eylül') || !body.includes('Sporting')) throw new Error('Hakem haberinin maçı eşleşmiyor');
+  if (fixture.date.slice(0, 10) !== spec.date || !(spec.mustInclude || []).every(term => body.includes(term))) throw new Error('Hakem haberinin maçı eşleşmiyor');
   const referee = body.match(/hakem\s+([A-ZÇĞİÖŞÜ][\p{L}]+\s+[A-ZÇĞİÖŞÜ][\p{L}]+)\s+yönetecek/u)?.[1];
   if (!referee) throw new Error('Hakem adı doğrulanamadı');
-  return { referee, source: 'beIN SPORTS · UEFA ataması haberi', sourceUrl: 'https://beinsports.com.tr/haber/galatasaray-sporting-macinin-hakemi-belli-oldu', checkedAt: new Date().toISOString() };
+  return { referee, source: spec.name, sourceUrl: spec.url, checkedAt: new Date().toISOString() };
 }

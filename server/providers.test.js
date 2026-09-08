@@ -4,13 +4,13 @@ import { parseFixtures, parseRss, parseSportingRoster, mediaAllowed, safeUrl } f
 
 test('fixture parser rejects past and completed fixtures and preserves TBD', () => {
   const event = (id, date, completed = false, detail = 'Scheduled') => ({ id, date, competitions: [{ status: { type: { completed, detail } }, competitors: [{ team: { id: '432', displayName: 'Galatasaray' }, homeAway: 'away' }, { team: { id: '2250', displayName: 'Sporting CP' }, homeAway: 'home' }] }] });
-  const items = parseFixtures({ events: [event('past', '2026-09-01T19:00Z'), event('complete', '2026-09-09T19:00Z', true), event('next', '2026-09-09T19:00Z'), event('tbd', '2026-09-12T19:00Z', false, 'TBD')] }, { id: 'uefa.champions', name: 'Şampiyonlar Ligi' }, Date.parse('2026-09-08T12:00Z'));
+  const items = parseFixtures({ events: [event('past', '2026-09-01T19:00Z'), event('complete', '2026-09-09T19:00Z', true), event('next', '2026-09-09T19:00Z'), event('tbd', '2026-09-12T19:00Z', false, 'TBD')] }, { id: 'uefa.champions', name: 'Şampiyonlar Ligi' }, '432', Date.parse('2026-09-08T12:00Z'));
   assert.deepEqual(items.map(x => x.id), ['next', 'tbd']);
   assert.equal(items[0].opponent.name, 'Sporting CP'); assert.equal(items[0].home, false); assert.equal(items[1].dateConfirmed, false);
 });
 test('official RSS excludes other sports and preserves an unknown publication time', () => {
   const xml = '<rss><channel><item><title>Yelken</title><link>https://www.galatasaray.org/haber/su-sporlari/1</link></item><item><title>Hazırlıklar</title><link>https://www.galatasaray.org/haber/futbol/2</link><description>&lt;b&gt;Antrenman&lt;/b&gt;</description></item><item><title>Kadın futbol</title><link>https://www.galatasaray.org/haber/futbol/kadin-futbol/3</link></item></channel></rss>';
-  const rows = parseRss(xml, { id: 'gs-news', name: 'Galatasaray', official: true }, '432');
+  const rows = parseRss(xml, { id: 'gs-news', name: 'Galatasaray', official: true, urlRequire: '/haber/futbol/', urlExclude: /kadin-futbol|akademi|altyapi/ }, '432');
   assert.equal(rows.length, 1); assert.equal(rows[0].publishedAt, null); assert.equal(rows[0].summary, 'Antrenman');
 });
 test('press stories require the opponent in the headline and are not official', () => {
