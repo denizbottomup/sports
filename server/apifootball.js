@@ -16,14 +16,16 @@ async function apiGet(path) {
   return body.response || [];
 }
 
+// "Erzurum" ↔ "Erzurumspor" gibi ek almış adlar için önek eşleşmesi de sayılır (en az 4 harf).
+const tokenMatches = (a, b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)));
 export function matchTeam(name, candidates) {
-  const tokens = new Set(fold(name).split(/[^a-z0-9]+/).filter(t => t.length > 2));
+  const tokens = [...new Set(fold(name).split(/[^a-z0-9]+/).filter(t => t.length > 2))];
   let best = null, bestScore = 0;
   for (const candidate of candidates) {
-    const candidateTokens = new Set(fold(candidate.name).split(/[^a-z0-9]+/).filter(t => t.length > 2));
+    const candidateTokens = [...new Set(fold(candidate.name).split(/[^a-z0-9]+/).filter(t => t.length > 2))];
     let score = 0;
-    for (const token of tokens) if (candidateTokens.has(token)) score++;
-    if (score > bestScore || (score === bestScore && best && candidate.name.length < best.name.length)) { best = candidate; bestScore = score; }
+    for (const token of tokens) if (candidateTokens.some(other => tokenMatches(token, other))) score++;
+    if (score > bestScore || (score === bestScore && score > 0 && best && candidate.name.length < best.name.length)) { best = candidate; bestScore = score; }
   }
   return bestScore > 0 ? best : null;
 }
