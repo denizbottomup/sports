@@ -9,9 +9,12 @@ Galatasaray'ın sıradaki lig ve Avrupa rakibi için gerçek fikstür, haberler 
 - Sporting CP kadrosu ve oyuncu fotoğrafları resmî kulüp sitesinden alınır. Diğer rakipler için ESPN kadro verisi kullanılır; olmayan fotoğraf üretilmez.
 - Kulüp logoları ve kaynak görselleri sunucuda önbelleğe alınır.
 - Kaynaklar 30–60 saniyelik haber, 15 dakikalık fikstür ve 4 saatlik kadro aralıklarıyla kontrol edilir. Yeni veriler açık tarayıcıya SSE ile iletilir; yayıncı gecikmesi bu sürelere dahil değildir.
+- Haberler uygulama içindeki okuyucuda açılır; kaynak adı korunur. Seçili Sporting haberlerinde kaynak kontrolü yapılmış Türkçe özetler, diğer uygun resmî haberlerde kısa kaynak aktarımları gösterilir. Tam makaleler yeniden yayımlanmaz.
+- Clickbait, saat/kanal soruları ve bilet içerikleri akıştan elenir. Okunabilir metni olmayan dizin başlıkları gösterilmez; aynı başlıklı haberler tekilleştirilir. Filtre kural tabanlıdır; tüm diller için eksiksiz sınıflandırma değildir.
+- Maç künyesi cihazın saat dilimini, stadyumu, hakemi ve seçilen ülkenin doğrulanmış yayın bilgisini gösterir. Yayın ülkesi saat diliminden ayrı seçilir. Türkiye TRT duyurusu ve ESPN bölgesel verisi bağlıdır; bilinmeyen yayıncı/şifre alanları tahmin edilmez.
 - Haber arama, filtreleme, ayrıntılar ve tarayıcıda haber kaydetme çalışır.
 
-Taraftar sentimenti henüz bağlı değildir; örnek yüzdeler gösterilmez. Kullanıcı hesabı ve takım seçimi [iş planındadır](docs/ROADMAP.md). Mevcut entegrasyon tüm liglerin tüm takımlarını kapsamaz. Haberler kaynak dilinde gösterilir. Kamuya açık kaynaklar değişebilir; uygulama kaynak sağlığını ve son başarılı kontrolü gösterir.
+Taraftar sentimenti henüz bağlı değildir; örnek yüzdeler gösterilmez. Kullanıcı hesabı ve takım seçimi [iş planındadır](docs/ROADMAP.md). Mevcut entegrasyon tüm liglerin tüm takımlarını kapsamaz. Türkçe özet ile kaynak dilindeki kısa aktarım ayrı etiketlenir. Kamuya açık kaynaklar değişebilir; uygulama kaynak sağlığını ve son başarılı kontrolü gösterir.
 
 ## Yerel çalıştırma
 

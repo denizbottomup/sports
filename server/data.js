@@ -3,6 +3,8 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { idFor, mediaAllowed, parseFixtures, parseRss, parseSportingNews, parseSportingRoster, parseEspnRoster } from './providers.js';
 
+import { articleAllowed, exclusionReason, parseArticle, makeReading, readableNews, parseMatchDetails, parseTrtBroadcast, parseRefereeReport } from './reading.js';
+
 export const DATA_DIR = process.env.DATA_DIR || path.resolve('data');
 export const MEDIA_DIR = path.join(DATA_DIR, 'media');
 export const changes = new EventEmitter();
@@ -15,7 +17,7 @@ const leagues = [
 ];
 const sourceMap = new Map(), validators = new Map(), active = new Set(), imageJobs = new Map();
 let imageQueue = Promise.resolve(), saveQueue = Promise.resolve();
-export let state = { version: 2, team: { id: '432', name: 'Galatasaray', short: 'Galatasaray', abbreviation: 'GS', logo: null, color: '#a31e32' }, fixtures: [], news: [], rosters: {}, updatedAt: null };
+export let state = { version: 2, team: { id: '432', name: 'Galatasaray', short: 'Galatasaray', abbreviation: 'GS', logo: null, color: '#a31e32' }, fixtures: [], news: [], rosters: {}, readings: {}, matchDetails: {}, updatedAt: null };
 
 const register = source => {
   if (!sourceMap.has(source.id)) sourceMap.set(source.id, { ...source, status: 'pending', lastCheckedAt: null, lastSuccessAt: null, error: null, failures: 0, nextCheck: 0 });
@@ -55,7 +57,9 @@ async function sourceFetch(source, parse, apply) {
 export function sources() { return [...sourceMap.values()].map(({ nextCheck, failures, ...s }) => ({ ...s, nextCheckAt: new Date(nextCheck || Date.now()).toISOString() })); }
 export function dashboard() {
   const fixtures = state.fixtures.filter(f => Date.parse(f.date) > Date.now() - 3 * 3600000);
-  return { ...state, fixtures, news: state.news.filter(n => !n.publishedAt || Date.parse(n.publishedAt) > Date.now() - 30 * 86400000), sources: sources(), serverTime: now(), newsPollSeconds: 30 };
+  const fresh = state.news.filter(n => !n.publishedAt || Date.parse(n.publishedAt) > Date.now() - 30 * 86400000);
+  const news = readableNews(fresh, state.readings || {});
+  return { team: state.team, rosters: state.rosters, updatedAt: state.updatedAt, fixtures: fixtures.map(f => ({ ...f, details: state.matchDetails?.[f.id] || null })), news, sources: sources(), serverTime: now(), newsPollSeconds: 30, feedPolicy: { version: 1, excluded: fresh.length - news.length } };
 }
 function queueImage(url) {
   if (!url || !mediaAllowed(url)) return null;
@@ -96,7 +100,16 @@ export function mergeNews(items, previous = state.news, timestamp = now()) {
   }
   return [...map.values()].filter(n => !n.publishedAt || Date.parse(n.publishedAt) > Date.now() - 30 * 86400000).sort((a, b) => Date.parse(b.publishedAt || b.firstSeenAt) - Date.parse(a.publishedAt || a.firstSeenAt)).slice(0, 350);
 }
-function addNews(items) { state.news = mergeNews(items); }
+function addNews(items) {
+  state.news = mergeNews(items);
+  state.readings ||= {};
+  for (const n of items) {
+    if (n.official && !exclusionReason(n) && !state.readings[n.id] && n.summary) {
+      const reading = makeReading(n, [n.summary]);
+      if (reading) state.readings[n.id] = reading;
+    }
+  }
+}
 
 async function refreshFixtures() {
   await Promise.allSettled(leagues.map(league => sourceFetch({ id: `fixtures-${league.id}`, name: `ESPN · ${league.name}`, kind: 'Fikstür', url: `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.id}/teams/432/schedule?fixture=true`, publicUrl: 'https://www.espn.com/soccer/team/fixtures/_/id/432/galatasaray', interval: 15 * 60000, official: false }, body => parseFixtures(JSON.parse(body), league), fixtures => {
@@ -137,6 +150,57 @@ async function refreshRosters() {
     });
   }
 }
+let readingRunning = false;
+const articleChecks = new Map();
+async function refreshReadings() {
+  if (readingRunning) return;
+  readingRunning = true;
+  try {
+    state.readings ||= {};
+    const candidates = state.news.filter(n => n.official && articleAllowed(n.url) && !exclusionReason(n) && (articleChecks.get(n.id) || 0) < Date.now()).slice(0, 6);
+    await Promise.allSettled(candidates.map(async n => {
+      articleChecks.set(n.id, Date.now() + 3600000);
+      try {
+        let target = n.url, response;
+        for (let redirects = 0; redirects < 3; redirects++) {
+          if (!articleAllowed(target)) throw new Error('Unsupported article redirect');
+          response = await fetch(target, { redirect: 'manual', signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Touchline/0.3' } });
+          if (response.status >= 300 && response.status < 400) { target = new URL(response.headers.get('location'), target).href; await response.body?.cancel(); continue; }
+          break;
+        }
+        if (!response?.ok) throw new Error('Article unavailable');
+        const paragraphs = parseArticle((await limitedBody(response, 2 * 1024 * 1024)).toString('utf8'), target);
+        const reading = makeReading(n, paragraphs);
+        if (reading) state.readings[n.id] = reading;
+      } catch { /* Keep an attributed short feed excerpt when the article is unavailable. */ }
+    }));
+    const ids = new Set(state.news.map(n => n.id));
+    for (const id of Object.keys(state.readings)) if (!ids.has(id)) { delete state.readings[id]; articleChecks.delete(id); }
+    if (candidates.length) emit();
+  } finally { readingRunning = false; }
+}
+async function refreshMatchDetails() {
+  state.matchDetails ||= {};
+  await Promise.allSettled(focusOpponents().map(async fixture => {
+    const id = fixture.id;
+    const summary = { id: `match-${id}`, name: `${fixture.opponent.name} · Maç künyesi`, kind: 'Maç bilgileri', url: `https://site.api.espn.com/apis/site/v2/sports/soccer/${fixture.competition}/summary?event=${id}`, publicUrl: fixture.sourceUrl, interval: 15 * 60000, official: false };
+    await sourceFetch(summary, body => parseMatchDetails(JSON.parse(body), fixture), details => {
+      const old = state.matchDetails[id];
+      state.matchDetails[id] = { ...details, ...(old?.refereeSource ? { referee: old.referee, refereeSource: old.refereeSource } : {}), broadcasts: [...details.broadcasts, ...(old?.broadcasts || []).filter(b => b.country === 'TR')] };
+    });
+    if (fixture.opponent.id === '2250') {
+      const trt = { id: `broadcast-${id}-TR`, name: 'TRT 1 · Maç yayını', kind: 'Yayın bilgileri', url: 'https://www.trt1.com.tr/', publicUrl: 'https://www.trt1.com.tr/', interval: 15 * 60000, official: true };
+      await sourceFetch(trt, body => parseTrtBroadcast(body, fixture), broadcast => {
+        const old = state.matchDetails[id] || {};
+        state.matchDetails[id] = { ...old, broadcasts: [...(old.broadcasts || []).filter(b => b.country !== 'TR'), broadcast] };
+      });
+    }
+    if (id === '401915447') {
+      const referee = { id: `referee-${id}`, name: 'beIN SPORTS · Hakem ataması', kind: 'Hakem bilgileri', url: 'https://beinsports.com.tr/haber/galatasaray-sporting-macinin-hakemi-belli-oldu', publicUrl: 'https://beinsports.com.tr/haber/galatasaray-sporting-macinin-hakemi-belli-oldu', interval: 3600000, official: false };
+      await sourceFetch(referee, body => parseRefereeReport(body, fixture), report => { state.matchDetails[id] = { ...state.matchDetails[id], referee: report.referee, refereeSource: report }; });
+    }
+  }));
+}
 async function pruneMedia() {
   try {
     const files = await Promise.all((await readdir(MEDIA_DIR)).filter(file => file.endsWith('.img')).map(async file => ({ file, ...(await stat(path.join(MEDIA_DIR, file))) })));
@@ -154,8 +218,9 @@ export async function startData() {
   await mkdir(MEDIA_DIR, { recursive: true });
   try { const saved = JSON.parse(await readFile(path.join(DATA_DIR, 'snapshot.json'), 'utf8')); if (saved.version === 2 && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = saved; } catch { /* A new deployment can start without a previous snapshot. */ }
   await refreshFixtures();
-  await Promise.allSettled([refreshNews(), refreshRosters()]);
-  const timer = setInterval(() => { void refreshFixtures(); void refreshNews(); void refreshRosters(); }, 10000);
+  await Promise.allSettled([refreshNews(), refreshRosters(), refreshMatchDetails()]);
+  await refreshReadings();
+  const timer = setInterval(() => { void refreshFixtures(); void refreshNews(); void refreshRosters(); void refreshMatchDetails(); void refreshReadings(); }, 10000);
   timer.unref();
   void pruneMedia();
   const cleanup = setInterval(() => { void pruneMedia(); }, 86400000); cleanup.unref();

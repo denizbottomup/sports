@@ -37,3 +37,12 @@
 - Web push ve kullanıcının seçtiği takım için abonelik.
 - Kullanıcının belirlediği sessiz saatler ve bildirim türleri.
 - Haber sisteme giriş → tarayıcıya iletim ve kaynak yayın → keşif gecikmelerini ayrı ölçme.
+
+## Haber okuma ve maç künyesi
+
+- [x] Kaynak adıyla uygulama içinde haber okuyucu; seçili kaynak kontrollü Türkçe özetler.
+- [x] Clickbait/saat/kanal/bilet filtreleri ve metinsiz başlıkların elenmesi.
+- [x] Cihaz saat dilimi, yaz/kış saati ve yayın ülkesi ayrımı.
+- [x] Kaynak ve kontrol tarihiyle maç hakemi / yayıncı / erişim durumu.
+- [ ] Tüm kaynaklar için otomatik, olgu denetimli çok dilli özet üretimi; metin erişimi olmayan basın kaynakları için izinli içerik anlaşmaları.
+- [ ] Ülke bazında kapsamlı yayın/abonelik verisi; federasyon hakem kaynakları ve editöryal inceleme kuyruğu.
