@@ -9,7 +9,7 @@ export function safeUrl(value, base) {
   try { const url = new URL(value, base); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href.replace(/^http:/, 'https:') : null; } catch { return null; }
 }
 export function mediaAllowed(value) {
-  try { const u = new URL(value); return u.protocol === 'https:' && !u.port && !u.username && !u.password && ['a.espncdn.com', 'scpconteudos.pt', 'www.sporting.pt', 'hlkiurt3.rocketcdn.com', 'kocaelispor.com.tr'].includes(u.hostname); } catch { return false; }
+  try { const u = new URL(value); return u.protocol === 'https:' && !u.port && !u.username && !u.password && ['a.espncdn.com', 'scpconteudos.pt', 'www.sporting.pt', 'hlkiurt3.rocketcdn.com', 'kocaelispor.com.tr', 'media.api-sports.io'].includes(u.hostname); } catch { return false; }
 }
 export function teamFrom(raw) {
   return { id: String(raw.id), name: raw.displayName || raw.name, short: raw.shortDisplayName || raw.displayName || raw.name, abbreviation: raw.abbreviation || '', logo: safeUrl(raw.logos?.[0]?.href || raw.logo), color: /^[0-9a-f]{6}$/i.test(raw.color) ? `#${raw.color}` : '#205240' };

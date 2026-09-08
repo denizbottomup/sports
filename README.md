@@ -37,7 +37,7 @@ Google girişi için bir OAuth istemcisi gerekir: Google Cloud Console → APIs 
 npm test
 ```
 
-Express API ve web çıktısını birlikte sunar. `DATA_DIR` (varsayılan `./data`) haber/fikstür anlık görüntüsünü, kullanıcı hesaplarını (`users.json`), takım dizinini (`teams.json`) ve görselleri saklar. Bu dizin Git'e eklenmez. Mevcut veri kaynakları API anahtarı gerektirmez; tek zorunlu secret `GOOGLE_CLIENT_ID`'dir. `ANTHROPIC_API_KEY` isteğe bağlıdır ve haber özet/çeviri hattını açar (Claude API).
+Express API ve web çıktısını birlikte sunar. `DATA_DIR` (varsayılan `./data`) haber/fikstür anlık görüntüsünü, kullanıcı hesaplarını (`users.json`), takım dizinini (`teams.json`) ve görselleri saklar. Bu dizin Git'e eklenmez. Mevcut veri kaynakları API anahtarı gerektirmez; tek zorunlu secret `GOOGLE_CLIENT_ID`'dir. `ANTHROPIC_API_KEY` isteğe bağlıdır ve haber özet/çeviri hattını açar (Claude API). `APIFOOTBALL_KEY` isteğe bağlıdır; tanımlıysa kadrolar API-Football'dan oyuncu fotoğraflarıyla çekilir (ESPN futbol kadrolarında fotoğraf bulunmaz), yoksa ESPN listesi gösterilir.
 
 ## Yayın ve ürün notları
 

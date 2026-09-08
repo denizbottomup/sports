@@ -8,6 +8,7 @@ import { clubRegistry, curatedMatchSources } from './registry.js';
 import { trackedTeamMap, favoriteTeamIds, languagesInUse, accounts, publicUser } from './store.js';
 import { teamById } from './teams.js';
 import { summarizerEnabled, summarizeArticle } from './summarize.js';
+import { apiFootballEnabled, findTeamId, fetchSquad } from './apifootball.js';
 
 export { DATA_DIR, MEDIA_DIR };
 export const changes = new EventEmitter();
@@ -22,7 +23,7 @@ const europeanCompetitions = [
 const MAX_TRACKED = 24;
 const sourceMap = new Map(), validators = new Map(), active = new Set(), imageJobs = new Map();
 let imageQueue = Promise.resolve(), saveQueue = Promise.resolve();
-export let state = { version: 3, teams: { [DEFAULT_TEAM.id]: DEFAULT_TEAM }, fixtures: [], news: [], rosters: {}, readings: {}, summaries: {}, matchDetails: {}, updatedAt: null };
+export let state = { version: 3, teams: { [DEFAULT_TEAM.id]: DEFAULT_TEAM }, fixtures: [], news: [], rosters: {}, readings: {}, summaries: {}, apiFootballIds: {}, matchDetails: {}, updatedAt: null };
 
 function tracked() {
   const map = trackedTeamMap();
@@ -211,11 +212,38 @@ async function refreshNews() {
   }
   await Promise.allSettled(work);
 }
+const apiFootballChecks = new Map();
+// Kadro fotoğrafları: ESPN futbol kadrolarında oyuncu fotoğrafı yoktur. APIFOOTBALL_KEY
+// tanımlıysa kadro API-Football'dan fotoğraflı çekilir; kayıtlı resmî kulüp sayfası (registry)
+// her zaman önceliklidir, her iki yol da başarısız olursa ESPN listesi gösterilir.
+async function apiFootballRoster(team, favoriteId) {
+  if (!apiFootballEnabled() || (apiFootballChecks.get(team.id) || 0) > Date.now()) return false;
+  apiFootballChecks.set(team.id, Date.now() + 4 * 3600000);
+  try {
+    state.apiFootballIds ||= {};
+    if (state.apiFootballIds[team.id] === undefined) {
+      state.apiFootballIds[team.id] = await findTeamId(team.name);
+      persist();
+    }
+    const apiId = state.apiFootballIds[team.id];
+    if (!apiId) return false;
+    const players = await fetchSquad(apiId);
+    state.rosters[team.id] = { players: players.map(p => ({ ...p, ...imageFields(p.image) })), updatedAt: now(), source: 'API-Football kadro', sourceUrl: `https://www.espn.com/soccer/team/squad/_/id/${team.id}`, official: false };
+    emit();
+    return true;
+  } catch (error) {
+    console.error(`API-Football roster ${team.id}: ${error.message}`);
+    apiFootballChecks.set(team.id, Date.now() + 3600000);
+    return false;
+  }
+}
 async function refreshRosters() {
   for (const teamId of dossierIds()) {
     for (const fixture of focusOpponents(teamId)) {
       const team = fixture.opponent;
       const registered = clubRegistry[team.id]?.roster;
+      if (!registered && await apiFootballRoster(team, teamId)) continue;
+      if (!registered && state.rosters[team.id]?.source === 'API-Football kadro') continue;
       const source = registered
         ? { id: `roster-${team.id}`, teams: [team.id, teamId], name: registered.name, kind: 'Kadro & oyuncu görselleri', url: registered.url, publicUrl: registered.publicUrl, official: true, interval: 4 * 3600000 }
         : { id: `roster-${team.id}`, teams: [team.id, teamId], name: `${team.name} · ESPN kadro`, kind: 'Kadro & oyuncu görselleri', url: `https://site.api.espn.com/apis/site/v2/sports/soccer/${fixture.competition}/teams/${team.id}/roster`, publicUrl: `https://www.espn.com/soccer/team/squad/_/id/${team.id}`, official: false, interval: 4 * 3600000 };
@@ -341,7 +369,7 @@ export async function startData() {
   await mkdir(MEDIA_DIR, { recursive: true });
   try {
     const saved = JSON.parse(await readFile(path.join(DATA_DIR, 'snapshot.json'), 'utf8'));
-    if (saved.version === 3 && saved.teams && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = { summaries: {}, ...saved };
+    if (saved.version === 3 && saved.teams && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = { summaries: {}, apiFootballIds: {}, ...saved };
     else if (saved.version === 2 && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) {
       const { team, ...rest } = saved;
       state = { ...rest, version: 3, teams: { [team.id]: { ...DEFAULT_TEAM, ...team } } };
