@@ -1,0 +1,7 @@
+export interface LiveTeam { id: string; name: string; short: string; abbreviation: string; logo: string | null; logoSource?: string | null; color: string; }
+export interface LiveFixture { id: string; date: string; dateConfirmed: boolean; status: string; competition: string; competitionName: string; home: boolean; team: LiveTeam; opponent: LiveTeam; venue: string | null; round: string; source: string; sourceUrl: string; fetchedAt: string; }
+export interface LiveNews { id: string; title: string; summary: string; url: string; image: string | null; imageSource: string | null; publishedAt: string | null; datePrecision: string; firstSeenAt: string; teamId: string; sourceId: string; source: string; official: boolean; language: string; category: string; }
+export interface Player { id: string; name: string; number: string; position: string; image: string | null; imageSource: string | null; sourceUrl: string | null; coach: boolean; }
+export interface Roster { players: Player[]; updatedAt: string; source: string; sourceUrl: string; official: boolean; }
+export interface Source { id: string; name: string; kind: string; publicUrl: string; official: boolean; interval: number; status: 'pending' | 'ok' | 'stale' | 'error'; lastCheckedAt: string | null; lastSuccessAt: string | null; error: string | null; }
+export interface Dashboard { team: LiveTeam; fixtures: LiveFixture[]; news: LiveNews[]; rosters: Record<string, Roster>; sources: Source[]; updatedAt: string | null; serverTime: string; newsPollSeconds: number; }

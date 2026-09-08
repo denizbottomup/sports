@@ -1,0 +1,154 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Activity, ArrowRight, ArrowUpRight, Bell, Bookmark, CalendarDays, Check, ChevronRight, CircleHelp, Clock3, ExternalLink, Globe2, LayoutDashboard, Menu, Newspaper, Radio, RefreshCw, Search, ShieldCheck, Trophy, Users, X } from 'lucide-react';
+import type { Dashboard, LiveFixture, LiveNews, LiveTeam, Roster } from './live-types';
+import './base.css';
+import './sports.css';
+import './live.css';
+
+type View = 'overview' | 'news' | 'fixtures' | 'squad' | 'pulse' | 'saved' | 'sources';
+const nav = [
+  { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
+  { id: 'news', label: 'Haber akışı', icon: Newspaper },
+  { id: 'squad', label: 'Rakibin kadrosu', icon: Users },
+  { id: 'pulse', label: 'Taraftar nabzı', icon: Activity },
+  { id: 'fixtures', label: 'Maç takvimi', icon: CalendarDays },
+  { id: 'saved', label: 'Kaydedilenler', icon: Bookmark },
+] as const;
+const categories: Record<string, string> = { all: 'Tümü', official: 'Resmî', press: 'Basın', training: 'Antrenman', squad: 'Kadro & sağlık', coach: 'Teknik ekip', transfer: 'Transfer' };
+const fmt = (date: string | null, time = false) => date && Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', ...(time ? { hour: '2-digit', minute: '2-digit' } : {}), timeZone: 'Europe/Istanbul' }).format(new Date(date)) : 'Tarih belirtilmemiş';
+const hour = (date: string) => new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' }).format(new Date(date));
+function readSaved(): LiveNews[] { try { const value = JSON.parse(localStorage.getItem('touchline.live.saved.v2') || '[]'); return Array.isArray(value) ? value.filter(n => n && typeof n.id === 'string' && typeof n.title === 'string' && typeof n.url === 'string' && /^https:\/\//.test(n.url)).slice(0, 100) : []; } catch { return []; } }
+
+function Photo({ src, fallback, alt, className = '', eager = false }: { src?: string | null; fallback?: string | null; alt: string; className?: string; eager?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const [originalFailed, setOriginalFailed] = useState(false);
+  useEffect(() => { setFailed(false); setOriginalFailed(false); }, [src]);
+  const url = failed ? fallback : src;
+  return url && !originalFailed ? <img className={className} src={url} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" referrerPolicy="no-referrer" onError={() => { if (!failed && fallback) setFailed(true); else setOriginalFailed(true); }} /> : <span className={`${className} image-placeholder`} role="img" aria-label={`${alt} · görsel bulunamadı`}><Users size={24} /></span>;
+}
+function Logo({ team, size = '' }: { team: LiveTeam; size?: string }) { return <Photo className={`real-logo ${size}`} src={team.logo} fallback={team.logoSource} alt={`${team.name} logosu`} eager />; }
+function Empty({ title, children }: { title: string; children: ReactNode }) { return <section className="empty-state"><Radio size={25} /><h3>{title}</h3><p>{children}</p></section>; }
+function Modal({ title, close, children }: { title: string; close: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const previous = document.activeElement as HTMLElement; ref.current?.showModal(); return () => { ref.current?.close(); previous?.focus(); }; }, []);
+  return <dialog ref={ref} className="tl-modal" aria-labelledby="live-dialog-title" onCancel={e => { e.preventDefault(); close(); }} onClick={e => { if (e.target === e.currentTarget) close(); }}><div className="modal-header"><h2 id="live-dialog-title">{title}</h2><button className="icon-button" onClick={close} aria-label="Pencereyi kapat"><X /></button></div><div className="modal-body">{children}</div></dialog>;
+}
+function Match({ fixture: f, selected, choose }: { fixture: LiveFixture; selected: boolean; choose: () => void }) {
+  return <button className={`fixture-button ${selected ? 'active' : ''}`} onClick={choose} aria-pressed={selected}><div className="fixture-top"><span>{f.competition === 'tur.1' ? <Trophy size={14} /> : <Globe2 size={14} />}{f.competitionName}</span><span>{fmt(f.date)} · {f.dateConfirmed ? hour(f.date) : 'Saat belirsiz'}</span></div><div className="fixture-teams"><Logo team={f.home ? f.team : f.opponent} /><strong>{f.home ? f.team.short : f.opponent.short}</strong><span className="vs">vs</span><Logo team={f.home ? f.opponent : f.team} /><strong>{f.home ? f.opponent.short : f.team.short}</strong><ChevronRight size={16} /></div></button>;
+}
+function NewsCard({ item, saved, save, open }: { item: LiveNews; saved: boolean; save: () => void; open: () => void }) {
+  return <article className={`news-card live-news ${item.image ? 'has-photo' : ''}`}>
+    {item.image ? <button className="news-photo-button" onClick={open} aria-label={`${item.title} ayrıntısı`}><Photo className="news-photo" src={item.image} fallback={item.imageSource} alt={item.title} /></button> : <div className={`news-icon ${item.official ? 'official' : 'press'}`}>{item.official ? <ShieldCheck size={22} /> : <Newspaper size={22} />}</div>}
+    <div className="news-body"><div className="news-meta"><span className={`category ${item.official ? 'official' : 'press'}`}>{item.official ? 'Resmî açıklama' : 'Basın'}</span><span>·</span><time dateTime={item.publishedAt || undefined}>{fmt(item.publishedAt, item.datePrecision !== 'day')}</time>{item.language === 'pt' && <span className="language-pill">PT</span>}</div><button className="news-title" onClick={open}>{item.title}</button>{item.summary && <p>{item.summary}</p>}<div className="news-footer"><span>{item.source}</span><a href={item.url} target="_blank" rel="noreferrer">Kaynağa git <ArrowUpRight size={14} /></a></div></div>
+    <button className={`save-button ${saved ? 'saved' : ''}`} onClick={save} aria-label={`${saved ? 'Kaydı kaldır' : 'Haberi kaydet'}: ${item.title}`} aria-pressed={saved}><Bookmark size={18} fill={saved ? 'currentColor' : 'none'} /></button>
+  </article>;
+}
+function Squad({ roster, full = false }: { roster?: Roster; full?: boolean }) {
+  if (!roster) return <Empty title="Kadro kaynağı bekleniyor">Bu rakibin kadro bilgisi henüz alınmadı. Oyuncu uygunluğu hakkında varsayım yapılmaz.</Empty>;
+  const players = roster.players.filter(p => !p.coach);
+  const shown = full ? players : [...players.filter(p => p.position === 'Hücum'), ...players.filter(p => p.position === 'Orta saha'), ...players.filter(p => !['Hücum', 'Orta saha'].includes(p.position))].slice(0, 4);
+  const coach = roster.players.find(p => p.coach && p.number === 'TP');
+  return <section className={`panel real-squad ${full ? 'full-squad' : ''}`}><div className="panel-heading"><h3><Users size={19} /> {full ? 'Rakibin oyuncuları' : 'Yakından tanı'}</h3><span className="small-pill">{players.length} oyuncu</span></div><p className="panel-description">{roster.official ? 'Kulübün resmî kadrosu' : 'ESPN kadro listesi'} · Maç kadrosu değildir.</p>
+    <div className="players-grid">{shown.map(p => <a className="real-player" href={p.sourceUrl || roster.sourceUrl} target="_blank" rel="noreferrer" key={p.id}><div className="player-portrait"><Photo src={p.image} fallback={p.imageSource} alt={p.name} /><span>{p.number}</span></div><strong>{p.name}</strong><small>{p.position}</small></a>)}</div>
+    {coach && <a className="real-coach" href={coach.sourceUrl!} target="_blank" rel="noreferrer"><Photo src={coach.image} fallback={coach.imageSource} alt={coach.name} /><span><small>TEKNİK DİREKTÖR</small><strong>{coach.name}</strong></span><ArrowUpRight size={17} /></a>}
+    <div className="roster-source"><a href={roster.sourceUrl} target="_blank" rel="noreferrer">{roster.source} <ExternalLink size={12} /></a><span>Kontrol: {fmt(roster.updatedAt, true)}</span></div>
+  </section>;
+}
+function Pulse({ opponent }: { opponent: LiveTeam }) {
+  return <section className="panel real-pulse"><div className="panel-heading"><h3><Activity size={18} /> Taraftar nabzı</h3><span className="small-pill">Ölçüm bekliyor</span></div><h4>{opponent.name} taraftarı bu maça inanıyor mu?</h4><p>Maça güven, hocaya destek ve oyuncu memnuniyeti için henüz doğrulanmış sosyal yorum örneklemi yok.</p><div className="pending-metrics"><span>Maça güven <b>—</b></span><span>Hocaya destek <b>—</b></span><span>Oyuncu memnuniyeti <b>—</b></span></div><p className="source-disclosure">X ve YouTube yorum bağlantıları iş planında. Haberler bu analizi beklemeden akışa gelir.</p></section>;
+}
+
+export default function LiveApp() {
+  const [data, setData] = useState<Dashboard | null>(null), [error, setError] = useState('');
+  const [view, setView] = useState<View>('overview'), [fixtureId, setFixtureId] = useState('');
+  const [scope, setScope] = useState<'opponent' | 'own'>('opponent'), [filter, setFilter] = useState('all'), [query, setQuery] = useState('');
+  const [saved, setSaved] = useState<LiveNews[]>(readSaved), [detail, setDetail] = useState<LiveNews | null>(null);
+  const [info, setInfo] = useState(false), [menu, setMenu] = useState(false), [connected, setConnected] = useState(false);
+  const [refreshing, setRefreshing] = useState(false), [newCount, setNewCount] = useState(0);
+  const known = useRef<Set<string> | null>(null), refresh = useRef<() => void>(() => {});
+  useEffect(() => {
+    let closed = false, running = false, debounce: ReturnType<typeof setTimeout>;
+    const abort = new AbortController();
+    const fetchData = async () => {
+      if (closed || running) return;
+      running = true; setRefreshing(true);
+      try {
+        const response = await fetch('/api/dashboard', { signal: abort.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error('Veri sunucusuna ulaşılamadı');
+        const next: Dashboard = await response.json();
+        if (!Array.isArray(next.fixtures) || !Array.isArray(next.news) || !Array.isArray(next.sources)) throw new Error('Veri yanıtı okunamadı');
+        if (!closed) {
+          if (known.current) setNewCount(n => n + next.news.filter(item => !known.current!.has(item.id)).length);
+          known.current = new Set(next.news.map(item => item.id)); setData(next); setError('');
+        }
+      } catch (e) { if (!closed) setError(e instanceof Error ? e.message : 'Bağlantı hatası'); }
+      finally { running = false; if (!closed) setRefreshing(false); }
+    };
+    refresh.current = () => { void fetchData(); };
+    void fetchData();
+    const events = new EventSource('/api/events');
+    events.addEventListener('connected', () => { setConnected(true); void fetchData(); });
+    events.addEventListener('update', () => { clearTimeout(debounce); debounce = setTimeout(() => { void fetchData(); }, 500); });
+    events.onerror = () => setConnected(false);
+    const timer = setInterval(() => { void fetchData(); }, 30000);
+    const onVisible = () => { if (!document.hidden) void fetchData(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { closed = true; abort.abort(); events.close(); clearInterval(timer); clearTimeout(debounce); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
+  useEffect(() => { try { localStorage.setItem('touchline.live.saved.v2', JSON.stringify(saved)); } catch { /* Keep bookmarks in memory if storage is full. */ } }, [saved]);
+  useEffect(() => { const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(false); }; window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key); }, []);
+  function navigate(v: View) { setView(v); setMenu(false); setFilter('all'); setQuery(''); setNewCount(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function choose(f: LiveFixture) { setFixtureId(f.id); setScope('opponent'); setFilter('all'); setQuery(''); setView('overview'); }
+  function toggle(n: LiveNews) { setSaved(rows => rows.some(p => p.id === n.id) ? rows.filter(p => p.id !== n.id) : [n, ...rows].slice(0, 100)); }
+  const fixture = data?.fixtures.find(f => f.id === fixtureId) || data?.fixtures[0];
+  const opponent = fixture?.opponent, roster = opponent && data?.rosters[opponent.id];
+  const teamId = scope === 'own' ? '432' : opponent?.id;
+  const news = (data?.news || []).filter(n => n.teamId === teamId);
+  const visible = (view === 'saved' ? saved : news).filter(n => (filter === 'all' || filter === 'official' && n.official || filter === 'press' && !n.official || n.category === filter) && `${n.title} ${n.summary} ${n.source}`.toLocaleLowerCase('tr').includes(query.toLocaleLowerCase('tr')));
+  const ownPreview = data?.news.find(n => n.teamId === '432' && n.title.toLocaleLowerCase('tr').includes(opponent?.name.toLocaleLowerCase('tr') || 'no-match'));
+  const photo = data?.news.find(n => n.teamId === opponent?.id && n.official && n.image && n.category === 'training') || data?.news.find(n => n.teamId === opponent?.id && n.official && n.image);
+  const tracked = data ? [data.fixtures.find(f => f.competition !== 'tur.1'), data.fixtures.find(f => f.competition === 'tur.1')].filter((f): f is LiveFixture => Boolean(f)).sort((a,b) => Date.parse(a.date) - Date.parse(b.date)) : [];
+  const sourceErrors = data?.sources.filter(s => ['error', 'stale'].includes(s.status)) || [];
+  const title = view === 'overview' ? 'Rakibini tanı.' : view === 'sources' ? 'Kaynağına kadar.' : nav.find(n => n.id === view)?.label || '';
+
+  return <div className="sports-app live-app">
+    {menu && <button className="sidebar-backdrop" aria-label="Menüyü kapat" onClick={() => setMenu(false)} />}
+    <aside className={`sidebar ${menu ? 'mobile-open' : ''}`}><button className="brand" onClick={() => navigate('overview')} aria-label="Touchline ana sayfa"><span className="brand-symbol"><span /><span /><span /></span>touchline<span className="brand-period">.</span></button><div className="workspace-label">MAÇ ÖNCESİ AVANTAJIN</div>
+      <nav className="primary-nav" aria-label="Ana menü">{nav.map(({ id, label, icon: Icon }) => <button key={id} className={view === id ? 'active' : ''} onClick={() => navigate(id)} aria-current={view === id ? 'page' : undefined}><Icon size={19} /><span>{label}</span>{id === 'saved' && saved.length > 0 && <small>{saved.length}</small>}{id === 'news' && <span className="nav-dot" />}</button>)}</nav>
+      <div className="sidebar-section-title"><span>TAKIMIN</span><ShieldCheck size={14} /></div><button className="live-team-choice" onClick={() => setInfo(true)}>{data && <Logo team={data.team} />}<span><strong>Galatasaray</strong><small>Süper Lig · Türkiye</small></span><Check size={16} /></button>
+      <div className="sidebar-section-title"><span>MAÇ ÖNCESİ TAKİP</span></div><div className="followed-teams">{tracked.map(f => <button key={f.id} className={fixture?.id === f.id ? 'active' : ''} onClick={() => choose(f)}><Logo team={f.opponent} /><span>{f.opponent.short}</span><small>{fmt(f.date)}</small></button>)}</div>
+      <div className="sidebar-bottom"><button className={view === 'sources' ? 'active' : ''} onClick={() => navigate('sources')}><Radio size={18} />Veri kaynakları<span className={sourceErrors.length ? 'offline-dot' : 'online-dot'} /></button><button onClick={() => setInfo(true)}><CircleHelp size={18} />İş planı & kapsam</button><div className="profile"><span>D</span><div><strong>Galatasaray dosyan</strong><small>Gerçek kaynaklar · v0.2</small></div></div></div>
+    </aside>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label="Menüyü aç" aria-expanded={menu} onClick={() => setMenu(true)}><Menu /></button><span>Maç merkezi</span><ChevronRight size={14} /><strong>{view === 'sources' ? 'Veri kaynakları' : nav.find(n => n.id === view)?.label}</strong></div><div className="topbar-right"><span className={`live-connection ${connected ? 'connected' : ''}`}><i />{connected ? 'Akış bağlı' : 'Yeniden bağlanıyor'}</span><button className="icon-button" disabled={refreshing} onClick={() => refresh.current()} aria-label="Verileri yenile"><RefreshCw size={18} className={refreshing ? 'spinning' : ''} /></button><button className="icon-button" onClick={() => setInfo(true)} aria-label="Bildirim planı"><Bell size={19} /></button></div></header>
+      <main className="main-content"><div className="page-heading"><div><div className="page-eyebrow"><span /> GALATASARAY MAÇ MERKEZİ</div><h1>{title}</h1><p>Gerçek gelişmeler. Kaynağından, maç öncesine.</p></div>{data && <div className="live-selected-team"><Logo team={data.team} /><span><small>BENİM TAKIMIM</small><strong>Galatasaray</strong></span></div>}</div>
+        {error && <div className="live-banner warning" role="alert">{error}. {data ? 'Son alınan veriler gösteriliyor.' : 'Bağlantı yeniden denenecek.'}<button onClick={() => refresh.current()}>Tekrar dene</button></div>}
+        {!data ? <Empty title="Rakip dosyan hazırlanıyor">Fikstür ve kaynaklar yükleniyor…</Empty> : <>
+          <div className="live-banner"><ShieldCheck size={17} /><span><strong>Gerçek kaynaklar bağlı.</strong> Resmî haberler ile basın haberleri ayrı etiketlenir.</span><button onClick={() => navigate('sources')}>{sourceErrors.length ? `${sourceErrors.length} kaynak uyarısı` : `${data.sources.filter(s => s.status === 'ok').length} kaynak çalışıyor`}<ArrowUpRight size={14} /></button></div>
+          {view === 'sources' ? <><div className="sources-grid">{data.sources.map(s => <section className="panel source-card" key={s.id}><div className="source-card-top"><span className="source-logo">{s.official ? <ShieldCheck /> : <Radio />}</span><span className={`source-health ${s.status}`}>{({ pending: 'Bağlanıyor', ok: 'Çalışıyor', stale: 'Eski veri', error: 'Erişim hatası' })[s.status]}</span></div><h3>{s.name}</h3><span className="eyebrow">{s.kind}</span><p>Son kontrol: {fmt(s.lastCheckedAt, true)}<br />Son başarılı erişim: {fmt(s.lastSuccessAt, true)}<br />Kontrol aralığı: {s.interval < 60000 ? `${s.interval / 1000} saniye` : `${s.interval / 60000} dakika`}</p>{s.error && <p className="source-error">{s.error}</p>}<a href={s.publicUrl} target="_blank" rel="noreferrer">Kaynağı aç <ExternalLink size={15} /></a></section>)}</div><div className="source-disclosure">ESPN'in herkese açık uç noktaları kullanılıyor; sözleşmeli veri servisi değildir ve kapsam değişebilir. Basın haberleri Google Haberler üzerinden keşfedilir, bağlantı özgün yayıncıya yönlendirir. Portekizce içerikler özgün dilinde gösterilir. Görseller kaynaklarından alınır ve sunucuda önbelleğe kaydedilir.</div></> : view === 'fixtures' ? <section className="panel fixtures-page"><div className="panel-heading"><h3><CalendarDays size={20} /> Galatasaray'ın yaklaşan maçları</h3><a href="https://www.espn.com/soccer/team/fixtures/_/id/432/galatasaray" target="_blank" rel="noreferrer">Fikstür kaynağı <ExternalLink size={14} /></a></div><p>Lig ve Avrupa takvimi birlikte. Tüm saatler Türkiye saati. İlk lig ve Avrupa rakibi aktif takipte.</p><div className="live-fixture-list">{data.fixtures.map(f => <Match key={f.id} fixture={f} selected={fixture?.id === f.id} choose={() => choose(f)} />)}</div>{!data.fixtures.length && <Empty title="Yaklaşan maç bulunamadı">Fikstür kaynaklarının durumunu kontrol edebilirsin.</Empty>}</section> : !fixture || !opponent ? <Empty title="Yaklaşan maç bekleniyor">Kaynaklar kontrol ediliyor. Doğrulanmış fikstür geldiğinde rakip dosyan açılacak.</Empty> : <>
+            <div className="live-fixtures">{tracked.map(f => <Match fixture={f} selected={fixture.id === f.id} choose={() => choose(f)} key={f.id} />)}<button className="all-fixtures-button" onClick={() => navigate('fixtures')}><CalendarDays size={21} />Tüm maçlar<ArrowRight size={15} /></button></div>
+            {view === 'overview' && <section className="live-hero">
+              {photo && <div className="hero-photo"><Photo src={photo.image} fallback={photo.imageSource} alt={`${opponent.name} maç hazırlığı — ${photo.source}`} eager /></div>}
+              <div className="hero-content"><div className="live-hero-top"><span><i /> RAKİP DOSYASI / {fixture.competitionName}</span><span className="hero-live-tag">GERÇEK FİKSTÜR</span></div><div className="hero-opponent"><Logo team={opponent} size="hero-logo" /><div><span>SIRADAKİ RAKİBİN</span><h2>{opponent.name}</h2><p><CalendarDays size={16} />{fmt(fixture.date)} · {fixture.dateConfirmed ? hour(fixture.date) : 'Saat kesinleşmedi'} · {fixture.home ? 'İç saha' : 'Deplasman'}</p>{fixture.venue && <p className="venue-label">{fixture.venue}</p>}</div></div><div className="live-hero-bottom"><span><Newspaper size={17} />{data.news.filter(n => n.teamId === opponent.id).length} gelişme</span><span><Users size={17} />{roster ? `${roster.players.filter(p => !p.coach).length} oyuncu` : 'Kadro bekleniyor'}</span><a href={fixture.sourceUrl} target="_blank" rel="noreferrer">Maç kaynağı <ArrowUpRight size={15} /></a></div></div>
+              {photo && <a className="photo-credit" href={photo.url} target="_blank" rel="noreferrer">Fotoğraf: {photo.source}</a>}
+            </section>}
+            {view === 'squad' ? <><Squad roster={roster} full /><div className="source-disclosure">Bu liste kulüp/sağlayıcı kadrosudur. İlk 11 veya maça uygunluk listesi değildir. Sakatlık ve cezalar yalnızca ilgili kaynak haberiyle gösterilir.</div></> : view === 'pulse' ? <Pulse opponent={opponent} /> : <div className={`content-grid ${view !== 'overview' ? 'full-feed' : ''}`}>
+              <section className="feed-section"><div className="section-heading"><div><h2>{view === 'saved' ? 'Kaydettiğin gelişmeler' : scope === 'own' ? 'Galatasaray cephesinde' : 'Rakipte neler oluyor?'}<span className="count-pill">{visible.length}</span></h2><p>Kaynak yayın tarihine göre, en yeniden başlayarak.</p></div><span className="feed-live"><i />Kaynak takibi açık</span></div>
+                {view !== 'saved' && <div className="feed-scope"><button className={scope === 'opponent' ? 'active' : ''} onClick={() => setScope('opponent')}><Logo team={opponent} />{opponent.short}</button><button className={scope === 'own' ? 'active' : ''} onClick={() => setScope('own')}><Logo team={data.team} />Galatasaray</button></div>}
+                <label className="live-search"><Search size={18} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Haber, oyuncu veya kaynak ara…" aria-label="Haberlerde ara" />{query && <button className="icon-button" onClick={() => setQuery('')} aria-label="Aramayı temizle"><X size={15} /></button>}</label>
+                <div className="feed-toolbar"><div className="feed-tabs">{Object.entries(categories).map(([id, label]) => <button key={id} aria-pressed={filter === id} className={filter === id ? 'active' : ''} onClick={() => setFilter(id)}>{label}</button>)}</div></div>
+                {newCount > 0 && <button className="new-news-banner" onClick={() => { setNewCount(0); setFilter('all'); setQuery(''); }}><RefreshCw size={15} />Akışa {newCount} yeni gelişme geldi</button>}
+                <div className="news-list">{visible.slice(0, view === 'overview' ? 12 : 150).map(n => <NewsCard item={n} key={n.id} saved={saved.some(p => p.id === n.id)} save={() => toggle(n)} open={() => setDetail(n)} />)}</div>
+                {!visible.length && <Empty title={view === 'saved' ? 'Henüz kaydedilmiş haber yok' : 'Bu görünümde haber bulunamadı'}>{view === 'saved' ? 'Haberin yanındaki yer imiyle daha sonra okumak üzere kaydet.' : 'Filtreyi değiştir veya veri kaynaklarının durumunu kontrol et. Boş alanlar örnek içerikle doldurulmaz.'}</Empty>}
+                {view === 'overview' && visible.length > 12 && <button className="button secondary see-all-news" onClick={() => navigate('news')}>Tüm {visible.length} gelişmeyi gör <ArrowRight size={16} /></button>}
+              </section>
+              {view === 'overview' && <aside className="insights-column"><Squad roster={roster} /><button className="button secondary squad-more" onClick={() => navigate('squad')}>Tüm kadroyu incele <ArrowRight size={15} /></button>{ownPreview && <section className="panel match-context"><div className="panel-heading"><h3><ShieldCheck size={18} /> Galatasaray'dan maç önü</h3></div><button className="news-title" onClick={() => setDetail(ownPreview)}>{ownPreview.title}</button><p>{ownPreview.summary}</p><a href={ownPreview.url} target="_blank" rel="noreferrer">Resmî açıklama <ArrowUpRight size={15} /></a></section>}<Pulse opponent={opponent} /><div className="source-mini"><ShieldCheck size={23} /><div><strong>Son kontrol: {fmt(data.updatedAt, true)}</strong><p>Fikstür 15 dk · kadro 4 sa · resmî haber 30 sn.</p></div><button onClick={() => navigate('sources')} aria-label="Veri kaynaklarını aç"><ArrowUpRight size={18} /></button></div></aside>}
+            </div>}
+          </>}
+        </>}
+        <footer className="page-footer"><span className="footer-brand">touchline.</span><span>Maç başlamadan, hikâyeyi anla.</span><button onClick={() => setInfo(true)}>Kapsam & iş planı <ArrowUpRight size={13} /></button></footer>
+      </main>
+    </div>
+    {detail && <Modal title="Gelişmenin kaynağı" close={() => setDetail(null)}>{detail.image && <Photo className="detail-photo" src={detail.image} fallback={detail.imageSource} alt={detail.title} />}<div className="detail-meta"><span className={`category ${detail.official ? 'official' : 'press'}`}>{detail.official ? 'Resmî açıklama' : 'Basın haberi'}</span><time>{fmt(detail.publishedAt, detail.datePrecision !== 'day')}</time></div><h2 className="detail-title">{detail.title}</h2>{detail.summary && <p className="detail-summary">{detail.summary}</p>}<div className="detail-source"><ShieldCheck size={20} /><div><strong>{detail.source}</strong><small>{detail.language === 'pt' ? 'Özgün dil: Portekizce' : 'Özgün dil: Türkçe'} · İlk görülme: {fmt(detail.firstSeenAt, true)}</small></div></div><p className="source-disclosure">Başlık ve kısa açıklama kaynaktan alınır. Tam haber özgün yayıncıda açılır.{detail.datePrecision === 'day' && ' Kaynak yalnızca yayın gününü veriyor; saat gösterilmez.'}</p><div className="detail-actions"><a className="button primary" href={detail.url} target="_blank" rel="noreferrer">Haberi kaynağında oku <ExternalLink size={16} /></a><button className="button secondary" onClick={() => toggle(detail)}><Bookmark size={16} />{saved.some(n => n.id === detail.id) ? 'Kaydı kaldır' : 'Kaydet'}</button></div></Modal>}
+    {info && <Modal title="Galatasaray ile başlıyoruz." close={() => setInfo(false)}><p className="detail-summary">Takımın Galatasaray olarak ayarlandı. Lig ve Avrupa'daki sıradaki rakipler, haberleri ve mevcut kadroları gerçek kaynaklardan geliyor.</p><div className="info-features"><p><Users size={22} /><span><strong>Giriş ve takım seçimi · İş planında</strong>Kayıt/giriş, ilk kullanımda takım seçimi, tercihlerin hesapta saklanması ve cihazlar arası eşitleme.</span></p><p><Radio size={22} /><span><strong>Haber akışı · Çalışıyor</strong>Resmî RSS 30 saniyede, basın dizini 60 saniyede kontrol edilir. Kaynak keşfinden sonra açık sayfaya SSE ile iletilir. Kaynak gecikmesi bu süreye eklenebilir.</span></p><p><Activity size={22} /><span><strong>Taraftar nabzı · Sıradaki aşama</strong>Gerçek yorum erişimi ve yeterli örneklem olmadan yüzdeler gösterilmez. X/YouTube erişimi ve Türkçe çeviri ayrıca bağlanacak.</span></p><p><Bell size={22} /><span><strong>Bildirimler · İş planında</strong>Açık sayfa güncellenir. Tarayıcı kapalıyken push bildirimi henüz gönderilmez.</span></p></div><p className="source-disclosure">Haber kaydetme bu tarayıcıda tutulur. 7 lig ve UEFA organizasyonlarının tam kulüp kapsamı iş planında; bu sürüm Galatasaray'ın ilk lig ve Avrupa rakibini izler. Görsellerin hakları ilgili kulüp/yayıncıya aittir; kaynak bağlantıları kartlarda bulunur.</p></Modal>}
+  </div>;
+}

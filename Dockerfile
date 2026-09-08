@@ -5,10 +5,15 @@ RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
-FROM nginx:stable-alpine AS runtime
+FROM node:22-alpine AS runtime
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY server/ ./server/
+COPY --from=build /app/web/dist/ ./web/dist/
 ENV PORT=8080
-ENV NGINX_ENVSUBST_FILTER=^PORT$
-COPY deploy/default.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=build /app/web/dist/ /usr/share/nginx/html/
+ENV NODE_ENV=production
+ENV DATA_DIR=/app/data
+RUN mkdir -p /app/data
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server/index.js"]

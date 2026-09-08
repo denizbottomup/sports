@@ -1,43 +1,28 @@
 # Railway dağıtımı
 
-Depo kökündeki `Dockerfile` Node.js 22 ile web uygulamasını derler; yalnızca statik üretim çıktısını Nginx imajına taşır. Geliştirme sunucusu üretimde çalışmaz.
+Dockerfile Node.js 22 ile web uygulamasını derler; Express sunucusu üretim çıktısını, API'yi ve SSE bağlantısını birlikte sunar.
 
-Railway servis ayarları:
+Servis ayarları:
 
-- Kaynak: `denizbottomup/sports`, dal: `main`; servis: `sports`.
-- Root Directory: `/` (Dockerfile depo kökünde).
-- Builder: Dockerfile; Dockerfile Path: `Dockerfile`.
-- Start Command: boş bırakılır; Dockerfile komutu kullanılır.
-- Port: Railway `PORT` değişkenini sağlar; yerel varsayılan `8080`.
-- Healthcheck: `/healthz`.
-- Public Networking: Railway alan adı oluşturulur.
-- Bu örnek sürüm için ek secret, veritabanı veya volume gerekmez.
+- Kaynak `denizbottomup/sports`, dal `main`, servis `sports`; Auto Deploy açık.
+- Root Directory `/`, builder Dockerfile, Dockerfile Path `Dockerfile`.
+- Start Command boş; Dockerfile komutu kullanılır.
+- `PORT` Railway tarafından sağlanır; Docker varsayılanı `8080`.
+- Healthcheck `/healthz`.
+- Kalıcı volume `/app/data` konumuna bağlanır; Dockerfile `DATA_DIR=/app/data` ayarlar.
+- Mevcut veri kaynakları için ek secret gerekmez.
 
-GitHub kaynak ayarlarında Auto Deploy açık olmalıdır. `main` dalına yapılan push işlemleri otomatik dağıtımı tetikler. İlk servis bağlantısı için Railway hesabının depoya erişimi olmalıdır.
+Kalıcı dizin haber/fikstür anlık görüntüsünü ve kaynak görsellerini saklar. Görsel önbelleği 256 MB ve 30 günlük saklama sınırıyla temizlenir. Bu sürüm tek replika içindir; toplayıcı süreç sunucuyla birlikte çalışır.
 
-Railway yeni servisler için `railway.json` / `railway.toml` desteğini kaldırdığı için bu servisin builder, sağlık kontrolü ve yeniden başlatma ayarları servis panelinde tutulur. Depo, çalıştırılabilir Dockerfile ve Nginx yapılandırmasını içerir. [Railway geçiş duyurusu](https://docs.railway.com/config-as-code).
-
-CLI ile mevcut servise manuel dağıtım, bu dizinin üstündeki depo kökünden yapılır:
-
-```sh
-railway login
-railway link
-railway up --service sports --ci
-railway domain --service sports
-```
-
-Yerel Docker doğrulaması:
+Builder ve sağlık kontrolü ayarları Railway servis panelinde tutulur. `main` dalına push otomatik dağıtımı tetikler.
 
 ```sh
 docker build -t touchline-web .
-docker run --rm -p 8080:8080 -e PORT=8080 touchline-web
+docker run --rm -p 8080:8080 -e PORT=8080 -v touchline-data:/app/data touchline-web
 curl --fail http://localhost:8080/healthz
+curl --fail http://localhost:8080/api/dashboard
 ```
 
-Yayın sonrası `/healthz`, ana sayfa ve HTML içindeki JavaScript/CSS dosyaları HTTP 200 dönmeli. Haber kaydetme, takım seçimi ve mobil görünüm tarayıcıda doğrulanmalı. Bilinmeyen asset adresleri 404 dönmelidir.
+Yayın sonrası sağlık kontrolü, API'deki ilk maç, haber kaynakları ve gerçek görseller canlı adreste doğrulanmalıdır. Sağlık kontrolü süreç durumunu ölçer; kaynakların ilk yüklenmesi ayrıca beklenmelidir. Bilinmeyen asset adresleri 404 dönmelidir. Haber kaydetme ve mobil görünüm tarayıcıda kontrol edilmelidir.
 
-Statik dosyalarda değişiklik olduğunda önceki başarılı deployment Railway panelinden yeniden dağıtılarak geri alınabilir. Kullanıcı tercihleri tarayıcıda tutulur; yeni alan adı localhost'taki tercihleri devralmaz.
-
-Maçlar, haberler ve sentiment hâlâ örnek veridir. Sunucuda yayınlamak canlı kaynak bağlantılarını etkinleştirmez.
-
-Resmî referanslar: [Dockerfile dağıtımı](https://docs.railway.com/builds/dockerfiles), [sağlık kontrolleri](https://docs.railway.com/deployments/healthchecks).
+Geri alma Railway panelinden önceki başarılı deployment yeniden dağıtılarak yapılır. Hesap sistemi henüz yoktur; kaydedilen haberler tarayıcıda tutulur.

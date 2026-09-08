@@ -1,5 +1,5 @@
-import SportsApp from "./sports/SportsApp";
+import LiveApp from "./sports/LiveApp";
 
 export default function App() {
-  return <SportsApp />;
+  return <LiveApp />;
 }

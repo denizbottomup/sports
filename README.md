@@ -1,48 +1,43 @@
 # Touchline — maç öncesi rakip dosyası
 
-Seçtiğin takımın lig ve Avrupa maçları öncesinde rakiple ilgili haberleri, kadro gelişmelerini ve taraftar nabzını bir araya getiren web uygulaması.
+Galatasaray'ın sıradaki lig ve Avrupa rakibi için gerçek fikstür, haberler ve kulüp kadrosunu bir araya getiren web uygulaması.
 
 ## Mevcut sürüm
 
-React, TypeScript ve Vite ile hazırlanmış ilk web prototipi. Türkiye, İngiltere, İspanya, Almanya, İtalya, Fransa ve Portekiz'den örnek takımlar; lig ve üç UEFA organizasyonu için örnek maç senaryoları içerir.
+- Galatasaray'ın yaklaşan maçları ESPN fikstür kaynağından alınır; sıradaki maç tarihe göre belirlenir.
+- Sıradaki lig ve Avrupa rakibinin haberleri resmî kulüp kaynakları ve Google News RSS üzerinden toplanır. Kaynak ve yayın tarihi gösterilir.
+- Sporting CP kadrosu ve oyuncu fotoğrafları resmî kulüp sitesinden alınır. Diğer rakipler için ESPN kadro verisi kullanılır; olmayan fotoğraf üretilmez.
+- Kulüp logoları ve kaynak görselleri sunucuda önbelleğe alınır.
+- Kaynaklar 30–60 saniyelik haber, 15 dakikalık fikstür ve 4 saatlik kadro aralıklarıyla kontrol edilir. Yeni veriler açık tarayıcıya SSE ile iletilir; yayıncı gecikmesi bu sürelere dahil değildir.
+- Haber arama, filtreleme, ayrıntılar ve tarayıcıda haber kaydetme çalışır.
 
-- Takım ve maç seçimi, rakip dosyası.
-- Kategori ve arama ile haber filtreleme, haber ayrıntıları, kaydetme.
-- Maça güven, hocaya destek ve oyuncu memnuniyeti için ayrı gösterimler.
-- X / YouTube örneklem seçimi ve yöntem açıklamaları.
-- Kaynak bağlantıları ve entegrasyon durumları.
-- Takım tercihi ve kaydedilen haberler için tarayıcıda yerel saklama.
-
-**Maçlar, haberler ve sentiment değerleri örnek veridir.** Canlı API, sosyal medya toplama, arka plan dinleme, hesap sistemi ve bildirim servisi henüz bağlı değildir. “Akışı dene” yalnızca yerel bir örnek haber ekler.
+Taraftar sentimenti henüz bağlı değildir; örnek yüzdeler gösterilmez. Kullanıcı hesabı ve takım seçimi [iş planındadır](docs/ROADMAP.md). Mevcut entegrasyon tüm liglerin tüm takımlarını kapsamaz. Haberler kaynak dilinde gösterilir. Kamuya açık kaynaklar değişebilir; uygulama kaynak sağlığını ve son başarılı kontrolü gösterir.
 
 ## Yerel çalıştırma
 
-Node.js 22 LTS ve npm kullanın.
+Node.js 22 ve npm gerekir. Depo kökünde:
 
 ```sh
-cd web
 npm ci
-npm run dev
-```
-
-Uygulama: http://localhost:5173
-
-## Üretim çıktısı
-
-```sh
-cd web
-npm ci
+npm --prefix web ci
 npm run build
+npm start
 ```
 
-Yayınlanacak statik dosyalar `web/dist/` içine yazılır. Sunucuda Nginx veya başka bir statik dosya sunucusu bu dizini servis edebilir. Geliştirme sunucusu üretimde kullanılmamalıdır. Mevcut sürüm için API anahtarı veya backend gerekmez. `vite.config.ts` içindeki geliştirme proxy ayarları henüz kullanılmamaktadır.
+Uygulama: http://localhost:3002. Geliştirme için backend çalışırken ayrı terminalde `npm --prefix web run dev` kullanılabilir.
 
-Railway dağıtımı için depo kökünde Dockerfile, Nginx yapılandırması ve `/healthz` sağlık kontrolü bulunur. Kurulum ve yayın sonrası doğrulama adımları [Railway dağıtım rehberinde](deploy/README.md) açıklanmıştır. Canlı kaynakların eklenmesi backend, kalıcı veri saklama ve kaynaklara uygun erişim gerektirir.
+```sh
+npm test
+```
 
-## Ürün ve veri notları
+Express API ve web çıktısını birlikte sunar. `DATA_DIR` (varsayılan `./data`) haber/fikstür anlık görüntüsünü ve görselleri saklar. Bu dizin Git'e eklenmez. Mevcut kaynaklar API anahtarı gerektirmez.
 
+## Yayın ve ürün notları
+
+- [Railway dağıtımı](deploy/README.md)
+- [İş planı](docs/ROADMAP.md)
 - [Ürün kapsamı](docs/SPORTS_PRODUCT_BRIEF.md)
 - [Veri kaynakları araştırması](docs/SPORTS_DATA_RESEARCH.md)
 - [Taraftar nabzı yaklaşımı](docs/SPORTS_FAN_PULSE.md)
 
-Araştırma notlarındaki hedefler uygulanmış özellikler değildir. İlk web sürümü TypeScript kontrolü ve Vite üretim derlemesi ile doğrulanmıştır.
+Araştırma notlarındaki hedefler uygulanmış özellikler değildir.
