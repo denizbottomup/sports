@@ -4,7 +4,7 @@ Depo kökündeki `Dockerfile` Node.js 22 ile web uygulamasını derler; yalnızc
 
 Railway servis ayarları:
 
-- Kaynak: `denizbottomup/sports`, dal: `main`.
+- Kaynak: `denizbottomup/sports`, dal: `main`; servis: `sports`.
 - Root Directory: `/` (Dockerfile depo kökünde).
 - Builder: Dockerfile; yapılandırma: `/railway.json`.
 - Start Command: boş bırakılır; Dockerfile komutu kullanılır.
@@ -20,8 +20,8 @@ CLI ile mevcut servise manuel dağıtım, bu dizinin üstündeki depo kökünden
 ```sh
 railway login
 railway link
-railway up --service sports-web --ci
-railway domain --service sports-web
+railway up --service sports --ci
+railway domain --service sports
 ```
 
 Yerel Docker doğrulaması:
