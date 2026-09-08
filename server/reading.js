@@ -38,10 +38,14 @@ export function readableNews(items, readings) {
   return items.flatMap(n => {
     if (exclusionReason(n)) return [];
     const reading = readings[n.id];
-    if (!reading?.paragraphs?.length) return [];
-    const key = fold(reading.title).replace(/[^\p{L}\p{N}]/gu, '');
+    const key = fold(reading?.title || n.title).replace(/[^\p{L}\p{N}]/gu, '');
     if (unique.has(key)) return [];
     unique.add(key);
+    if (!reading?.paragraphs?.length) {
+      // Okunabilir metni olmayan basın başlıkları uygulama içinde açılmaz; kaynağa bağlanan
+      // kart olarak listelenir. Clickbait/saat-kanal/bilet filtreleri yukarıda uygulanmıştır.
+      return [{ ...n, summary: '', linkOnly: true }];
+    }
     return [{ ...n, title: reading.title, summary: reading.paragraphs[0], category: reading.category || n.category, reading }];
   });
 }

@@ -195,7 +195,7 @@ async function refreshNews() {
   for (const team of tracked()) wanted.set(team.id, { team, isOpponent: false, league: team.league });
   for (const teamId of dossierIds()) for (const fixture of focusOpponents(teamId)) {
     const existing = wanted.get(fixture.opponent.id);
-    wanted.set(fixture.opponent.id, { team: existing?.team || fixture.opponent, isOpponent: true, league: existing?.league || fixture.competition });
+    wanted.set(fixture.opponent.id, { team: existing?.team || fixture.opponent, isOpponent: true, league: existing?.league || teamById(fixture.opponent.id)?.league || fixture.competition });
   }
   for (const { team, isOpponent, league } of wanted.values()) {
     for (const registered of clubRegistry[team.id]?.news || []) {

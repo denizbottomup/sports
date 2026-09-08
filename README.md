@@ -12,7 +12,7 @@ Seçtiğin takımın sıradaki lig ve Avrupa rakibi için gerçek fikstür, habe
 - Kulüp logoları ve kaynak görselleri sunucuda önbelleğe alınır.
 - Kaynaklar 30–60 saniyelik haber, 15 dakikalık fikstür ve 4 saatlik kadro aralıklarıyla kontrol edilir. Yeni veriler açık tarayıcıya SSE ile iletilir; yayıncı gecikmesi bu sürelere dahil değildir.
 - Haberler uygulama içindeki okuyucuda açılır; kaynak adı ve orijinal bağlantı korunur. `ANTHROPIC_API_KEY` tanımlıysa resmî kulüp haberlerinin tam metninden, kullanıcının seçtiği dilde (7 dil desteklenir) özgün özetler üretilir ve önbelleklenir; başlık da bu dilde gösterilir. Anahtar yoksa veya özet üretilemezse elle yazılmış brief'ler ve kısa kaynak aktarımları gösterilir. Tam makaleler hiçbir durumda yeniden yayımlanmaz; özetler kaynaktan belirgin biçimde kısadır.
-- Clickbait, saat/kanal soruları ve bilet içerikleri akıştan elenir. Okunabilir metni olmayan dizin başlıkları gösterilmez; aynı başlıklı haberler tekilleştirilir. Filtre kural tabanlıdır; tüm diller için eksiksiz sınıflandırma değildir.
+- Clickbait, saat/kanal soruları ve bilet içerikleri akıştan elenir; aynı başlıklı haberler tekilleştirilir. Okunabilir metni olmayan basın başlıkları uygulama içinde açılmaz; kaynağa bağlanan kart olarak listelenir. Filtre kural tabanlıdır; tüm diller için eksiksiz sınıflandırma değildir.
 - Maç künyesi cihazın saat dilimini, stadyumu, hakemi ve seçilen ülkenin doğrulanmış yayın bilgisini gösterir. Yayın ülkesi saat diliminden ayrı seçilir. Türkiye TRT duyurusu ve ESPN bölgesel verisi bağlıdır; bilinmeyen yayıncı/şifre alanları tahmin edilmez.
 - Haber arama, filtreleme, ayrıntılar ve tarayıcıda haber kaydetme çalışır.
 

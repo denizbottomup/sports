@@ -8,10 +8,13 @@ test('clickbait, fixture questions and ticket sales stay out of news, factual in
   for (const title of ["Sporting'de Galatasaray maçı öncesi flaş karar!", 'Herkesi şaşırtacak karar...', 'Sporting maçı ne zaman, hangi kanalda?', 'Sporting Galatasaray maçının hakemi belli oldu', 'Galatasaray maç kadrosunda kimler var?', 'Sporting biletleri satışta']) assert.ok(exclusionReason({ title }), title);
   assert.equal(exclusionReason({title: 'Ibrahima Ba aldığı darbe nedeniyle kadroya alınmadı'}), null);
 });
-test('unreadable and blocked stories cannot reappear from old persisted snapshots; duplicate headlines collapse', () => {
- const stories = [{id:'a',title:'Sporting antrenmanı tamamladı'}, {id:'b',title:'Sporting antrenmanı tamamladı'}, {id:'c',title:'Flaş karar!'}, {id:'d',title:'Başlık var ama metin yok'}];
+test('blocked stories stay out, duplicates collapse, textless headlines become link-out cards', () => {
+ const stories = [{id:'a',title:'Sporting antrenmanı tamamladı'}, {id:'b',title:'Sporting antrenmanı tamamladı'}, {id:'c',title:'Flaş karar!'}, {id:'d',title:'Başlık var ama metin yok', url:'https://example.com/d'}];
  const readings = Object.fromEntries(stories.slice(0,3).map(n => [n.id, {title:n.title,paragraphs:['Kaynak metni']} ]));
- assert.deepEqual(readableNews(stories,readings).map(n=>n.id),['a']);
+ const rows = readableNews(stories,readings);
+ assert.deepEqual(rows.map(n=>n.id),['a','d']);
+ assert.equal(rows[0].linkOnly, undefined);
+ assert.equal(rows[1].linkOnly, true);
 });
 test('article fetch rejects local addresses, credentials and redirects outside known football pages', () => {
  assert.equal(articleAllowed('https://www.sporting.pt/pt/noticias/futebol/equipa-principal/2026-09-07/report'),true);
