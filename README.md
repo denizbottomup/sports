@@ -37,7 +37,7 @@ npm run build
 
 Yayınlanacak statik dosyalar `web/dist/` içine yazılır. Sunucuda Nginx veya başka bir statik dosya sunucusu bu dizini servis edebilir. Geliştirme sunucusu üretimde kullanılmamalıdır. Mevcut sürüm için API anahtarı veya backend gerekmez. `vite.config.ts` içindeki geliştirme proxy ayarları henüz kullanılmamaktadır.
 
-Sunucu dağıtımı henüz yapılmadı. Canlı kaynakların eklenmesi backend, kalıcı veri saklama ve kaynaklara uygun erişim gerektirir.
+Railway dağıtımı için depo kökünde Dockerfile, Nginx yapılandırması ve `/healthz` sağlık kontrolü bulunur. Kurulum ve yayın sonrası doğrulama adımları [Railway dağıtım rehberinde](deploy/README.md) açıklanmıştır. Canlı kaynakların eklenmesi backend, kalıcı veri saklama ve kaynaklara uygun erişim gerektirir.
 
 ## Ürün ve veri notları
 
