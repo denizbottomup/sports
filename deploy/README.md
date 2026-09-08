@@ -10,7 +10,7 @@ Servis ayarları:
 - `PORT` Railway tarafından sağlanır; Docker varsayılanı `8080`.
 - Healthcheck `/healthz`.
 - Kalıcı volume `/app/data` konumuna bağlanır; Dockerfile `DATA_DIR=/app/data` ayarlar.
-- `GOOGLE_CLIENT_ID` ortam değişkeni Railway servis ayarlarında tanımlanır (Google OAuth Web istemci kimliği); canlı alan adı Google Cloud Console'da Authorized JavaScript origins listesine eklenir. Veri kaynakları için başka secret gerekmez.
+- `GOOGLE_CLIENT_ID` ortam değişkeni Railway servis ayarlarında tanımlanır (Google OAuth Web istemci kimliği); canlı alan adı Google Cloud Console'da Authorized JavaScript origins listesine eklenir. `ANTHROPIC_API_KEY` isteğe bağlıdır; tanımlanırsa resmî haberlerden kullanıcı dilinde özetler üretilir, tanımlanmazsa uygulama kısa aktarım moduna düşer. Veri kaynakları için başka secret gerekmez.
 
 Kalıcı dizin haber/fikstür anlık görüntüsünü, kullanıcı hesaplarını (`users.json`), takım dizinini (`teams.json`) ve kaynak görsellerini saklar. Görsel önbelleği 256 MB ve 30 günlük saklama sınırıyla temizlenir. Bu sürüm tek replika içindir; toplayıcı süreç sunucuyla birlikte çalışır.
 

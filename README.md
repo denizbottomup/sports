@@ -11,7 +11,7 @@ Seçtiğin takımın sıradaki lig ve Avrupa rakibi için gerçek fikstür, habe
 - Resmî kaynak kaydı olan kulüplerde (şimdilik Galatasaray ve Sporting CP, `server/registry.js`) kulüp sitesi/RSS akışı kullanılır; kadro ve oyuncu fotoğrafları resmî siteden gelir. Kayıtsız kulüplerde ESPN kadro verisi ve Türkçe basın dizini kullanılır; olmayan fotoğraf üretilmez. Resmî akışı bağlı olmayan takımlarda okunabilir metin şartı nedeniyle haber akışı ince kalabilir; kapsam kayıt defteri genişledikçe artar.
 - Kulüp logoları ve kaynak görselleri sunucuda önbelleğe alınır.
 - Kaynaklar 30–60 saniyelik haber, 15 dakikalık fikstür ve 4 saatlik kadro aralıklarıyla kontrol edilir. Yeni veriler açık tarayıcıya SSE ile iletilir; yayıncı gecikmesi bu sürelere dahil değildir.
-- Haberler uygulama içindeki okuyucuda açılır; kaynak adı korunur. Seçili Sporting haberlerinde kaynak kontrolü yapılmış Türkçe özetler, diğer uygun resmî haberlerde kısa kaynak aktarımları gösterilir. Tam makaleler yeniden yayımlanmaz.
+- Haberler uygulama içindeki okuyucuda açılır; kaynak adı ve orijinal bağlantı korunur. `ANTHROPIC_API_KEY` tanımlıysa resmî kulüp haberlerinin tam metninden, kullanıcının seçtiği dilde (7 dil desteklenir) özgün özetler üretilir ve önbelleklenir; başlık da bu dilde gösterilir. Anahtar yoksa veya özet üretilemezse elle yazılmış brief'ler ve kısa kaynak aktarımları gösterilir. Tam makaleler hiçbir durumda yeniden yayımlanmaz; özetler kaynaktan belirgin biçimde kısadır.
 - Clickbait, saat/kanal soruları ve bilet içerikleri akıştan elenir. Okunabilir metni olmayan dizin başlıkları gösterilmez; aynı başlıklı haberler tekilleştirilir. Filtre kural tabanlıdır; tüm diller için eksiksiz sınıflandırma değildir.
 - Maç künyesi cihazın saat dilimini, stadyumu, hakemi ve seçilen ülkenin doğrulanmış yayın bilgisini gösterir. Yayın ülkesi saat diliminden ayrı seçilir. Türkiye TRT duyurusu ve ESPN bölgesel verisi bağlıdır; bilinmeyen yayıncı/şifre alanları tahmin edilmez.
 - Haber arama, filtreleme, ayrıntılar ve tarayıcıda haber kaydetme çalışır.
@@ -37,7 +37,7 @@ Google girişi için bir OAuth istemcisi gerekir: Google Cloud Console → APIs 
 npm test
 ```
 
-Express API ve web çıktısını birlikte sunar. `DATA_DIR` (varsayılan `./data`) haber/fikstür anlık görüntüsünü, kullanıcı hesaplarını (`users.json`), takım dizinini (`teams.json`) ve görselleri saklar. Bu dizin Git'e eklenmez. Mevcut veri kaynakları API anahtarı gerektirmez; tek zorunlu secret `GOOGLE_CLIENT_ID`'dir.
+Express API ve web çıktısını birlikte sunar. `DATA_DIR` (varsayılan `./data`) haber/fikstür anlık görüntüsünü, kullanıcı hesaplarını (`users.json`), takım dizinini (`teams.json`) ve görselleri saklar. Bu dizin Git'e eklenmez. Mevcut veri kaynakları API anahtarı gerektirmez; tek zorunlu secret `GOOGLE_CLIENT_ID`'dir. `ANTHROPIC_API_KEY` isteğe bağlıdır ve haber özet/çeviri hattını açar (Claude API).
 
 ## Yayın ve ürün notları
 

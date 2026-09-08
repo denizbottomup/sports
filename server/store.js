@@ -23,7 +23,7 @@ function pruneSessions() { const cutoff = Date.now(); for (const [token, s] of O
 
 export function upsertUser(profile) {
   const old = db.users[profile.sub];
-  db.users[profile.sub] = { id: profile.sub, email: profile.email, name: profile.name || profile.email, picture: profile.picture || null, favorite: old?.favorite || null, followed: old?.followed || [], createdAt: old?.createdAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() };
+  db.users[profile.sub] = { id: profile.sub, email: profile.email, name: profile.name || profile.email, picture: profile.picture || null, favorite: old?.favorite || null, followed: old?.followed || [], language: old?.language || 'tr', createdAt: old?.createdAt || new Date().toISOString(), lastLoginAt: new Date().toISOString() };
   persist();
   return db.users[profile.sub];
 }
@@ -40,10 +40,11 @@ export function userForSession(token) {
   return db.users[session.userId] || null;
 }
 export function deleteSession(token) { if (token && db.sessions[token]) { delete db.sessions[token]; persist(); } }
-export function setTeams(userId, favorite, followed) {
+export function setTeams(userId, favorite, followed, language) {
   const user = db.users[userId];
   if (!user) return null;
   user.favorite = favorite; user.followed = followed;
+  if (language) user.language = language;
   persist();
   accounts.emit('teams');
   return user;
@@ -54,4 +55,10 @@ export function trackedTeamMap() {
   for (const user of Object.values(db.users)) for (const team of [user.favorite, ...(user.followed || [])]) if (team?.id) map.set(team.id, team);
   return map;
 }
-export const publicUser = user => user && { id: user.id, email: user.email, name: user.name, picture: user.picture, favorite: user.favorite, followed: user.followed || [] };
+export const publicUser = user => user && { id: user.id, email: user.email, name: user.name, picture: user.picture, favorite: user.favorite, followed: user.followed || [], language: user.language || 'tr' };
+
+export function languagesInUse() {
+  const langs = new Set(['tr']);
+  for (const user of Object.values(db.users)) if (user.language) langs.add(user.language);
+  return [...langs];
+}

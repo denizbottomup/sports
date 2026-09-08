@@ -5,8 +5,9 @@ import { DATA_DIR, MEDIA_DIR } from './paths.js';
 import { idFor, mediaAllowed, parseFixtures, parseRss, parseEspnRoster } from './providers.js';
 import { articleAllowed, exclusionReason, parseArticle, makeReading, readableNews, parseMatchDetails, parseTrtBroadcast, parseRefereeReport } from './reading.js';
 import { clubRegistry, curatedMatchSources } from './registry.js';
-import { trackedTeamMap, favoriteTeamIds, accounts, publicUser } from './store.js';
+import { trackedTeamMap, favoriteTeamIds, languagesInUse, accounts, publicUser } from './store.js';
 import { teamById } from './teams.js';
+import { summarizerEnabled, summarizeArticle } from './summarize.js';
 
 export { DATA_DIR, MEDIA_DIR };
 export const changes = new EventEmitter();
@@ -21,7 +22,7 @@ const europeanCompetitions = [
 const MAX_TRACKED = 24;
 const sourceMap = new Map(), validators = new Map(), active = new Set(), imageJobs = new Map();
 let imageQueue = Promise.resolve(), saveQueue = Promise.resolve();
-export let state = { version: 3, teams: { [DEFAULT_TEAM.id]: DEFAULT_TEAM }, fixtures: [], news: [], rosters: {}, readings: {}, matchDetails: {}, updatedAt: null };
+export let state = { version: 3, teams: { [DEFAULT_TEAM.id]: DEFAULT_TEAM }, fixtures: [], news: [], rosters: {}, readings: {}, summaries: {}, matchDetails: {}, updatedAt: null };
 
 function tracked() {
   const map = trackedTeamMap();
@@ -90,7 +91,7 @@ export function dashboard(user) {
   });
   const relevant = new Set([favorite.id, ...focus.map(f => f.opponent.id), ...followed.map(f => f.team.id)]);
   const fresh = state.news.filter(n => relevant.has(n.teamId) && (!n.publishedAt || Date.parse(n.publishedAt) > Date.now() - 30 * 86400000));
-  const news = readableNews(fresh, state.readings || {});
+  const news = readableNews(fresh, readingsFor(user?.language || 'tr'));
   const rosters = Object.fromEntries(Object.entries(state.rosters).filter(([teamId]) => relevant.has(teamId)));
   return { ...empty, focusFixtureIds: focus.map(f => f.id), followed, fixtures: fixtures.map(f => ({ ...f, details: state.matchDetails?.[f.id] || null })), news, rosters, sources: sources().filter(s => !s.teams || s.teams.some(id => relevant.has(id))).map(({ teams, ...s }) => s), feedPolicy: { version: 1, excluded: fresh.length - news.length } };
 }
@@ -216,6 +217,32 @@ async function refreshRosters() {
     }
   }
 }
+// Kullanıcının dili için etkili okuma haritası: dildeki özet varsa onu kullan; Türkçede
+// elle yazılmış brief özete karşı önceliklidir, özet ise kısa aktarımın (excerpt) önüne geçer.
+export function readingsFor(language) {
+  const effective = { ...(state.readings || {}) };
+  for (const [id, byLang] of Object.entries(state.summaries || {})) {
+    const summary = byLang?.[language];
+    if (summary && !(language === 'tr' && effective[id]?.kind === 'brief')) effective[id] = summary;
+  }
+  return effective;
+}
+function missingLanguages(id) {
+  return languagesInUse().filter(lang => !state.summaries?.[id]?.[lang] && !(lang === 'tr' && state.readings?.[id]?.kind === 'brief'));
+}
+async function addSummaries(n, paragraphs) {
+  if (!summarizerEnabled()) return false;
+  let added = false;
+  for (const lang of missingLanguages(n.id).slice(0, 4)) {
+    try {
+      const summary = await summarizeArticle({ title: n.title, source: n.source, language: n.language, paragraphs }, lang);
+      state.summaries[n.id] ||= {};
+      state.summaries[n.id][lang] = summary;
+      added = true;
+    } catch (error) { console.error(`Summary ${n.id} (${lang}): ${error.message}`); }
+  }
+  return added;
+}
 let readingRunning = false;
 const articleChecks = new Map();
 async function refreshReadings() {
@@ -223,7 +250,8 @@ async function refreshReadings() {
   readingRunning = true;
   try {
     state.readings ||= {};
-    const candidates = state.news.filter(n => n.official && articleAllowed(n.url) && !exclusionReason(n) && (articleChecks.get(n.id) || 0) < Date.now()).slice(0, 6);
+    state.summaries ||= {};
+    const candidates = state.news.filter(n => n.official && articleAllowed(n.url) && !exclusionReason(n) && (articleChecks.get(n.id) || 0) < Date.now() && (!state.readings[n.id] || missingLanguages(n.id).length > 0)).slice(0, 4);
     await Promise.allSettled(candidates.map(async n => {
       articleChecks.set(n.id, Date.now() + 3600000);
       try {
@@ -237,11 +265,15 @@ async function refreshReadings() {
         if (!response?.ok) throw new Error('Article unavailable');
         const paragraphs = parseArticle((await limitedBody(response, 2 * 1024 * 1024)).toString('utf8'), target);
         const reading = makeReading(n, paragraphs);
-        if (reading) state.readings[n.id] = reading;
+        if (reading && !state.readings[n.id]) state.readings[n.id] = reading;
+        const done = await addSummaries(n, paragraphs);
+        // Tüm diller tamamlanmadıysa (anahtar yok, API hatası) makale 10 dk sonra yeniden denenir.
+        if (summarizerEnabled() && missingLanguages(n.id).length > 0) articleChecks.set(n.id, Date.now() + (done ? 600000 : 1800000));
       } catch { /* Keep an attributed short feed excerpt when the article is unavailable. */ }
     }));
     const ids = new Set(state.news.map(n => n.id));
     for (const id of Object.keys(state.readings)) if (!ids.has(id)) { delete state.readings[id]; articleChecks.delete(id); }
+    for (const id of Object.keys(state.summaries)) if (!ids.has(id)) delete state.summaries[id];
     if (candidates.length) emit();
   } finally { readingRunning = false; }
 }
@@ -294,7 +326,7 @@ export async function startData() {
   await mkdir(MEDIA_DIR, { recursive: true });
   try {
     const saved = JSON.parse(await readFile(path.join(DATA_DIR, 'snapshot.json'), 'utf8'));
-    if (saved.version === 3 && saved.teams && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = saved;
+    if (saved.version === 3 && saved.teams && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) state = { summaries: {}, ...saved };
     else if (saved.version === 2 && Array.isArray(saved.fixtures) && Array.isArray(saved.news)) {
       const { team, ...rest } = saved;
       state = { ...rest, version: 3, teams: { [team.id]: { ...DEFAULT_TEAM, ...team } } };

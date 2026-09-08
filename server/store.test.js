@@ -19,6 +19,10 @@ test('account, session and team preference lifecycle', () => {
   assert.deepEqual(store.favoriteTeamIds(), ['432']);
   assert.deepEqual([...store.trackedTeamMap().keys()].sort(), ['2250', '432']);
   const shared = store.publicUser(store.userForSession(token));
+  assert.equal(shared.language, 'tr');
+  store.setTeams(user.id, favorite, followed, 'en');
+  assert.equal(store.publicUser(store.userForSession(token)).language, 'en');
+  assert.deepEqual(store.languagesInUse().sort(), ['en', 'tr']);
   assert.equal(shared.favorite.id, '432');
   assert.equal(shared.followed.length, 1);
   assert.equal('createdAt' in shared, false);

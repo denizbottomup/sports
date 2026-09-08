@@ -78,3 +78,5 @@
 .profile-photo{width:29px;height:29px;border-radius:50%;object-fit:cover;flex-shrink:0}
 .profile-identity{flex:1;min-width:0}
 .profile-identity strong,.profile-identity small{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.language-select{width:100%;border:1px solid #e1e6da;border-radius:8px;background:#fff;padding:10px 12px;font-size:12px;color:#334b39}
+.language-select:focus-visible{outline:2px solid #bbce9d}

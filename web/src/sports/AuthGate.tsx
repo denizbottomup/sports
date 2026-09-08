@@ -88,16 +88,22 @@ function TeamSearch({ picked, onPick, placeholder }: { picked: string[]; onPick:
   </div>;
 }
 
-function Onboarding({ user, onDone, onCancel }: { user: User; onDone: (user: User) => void; onCancel?: () => void }) {
+function browserLanguage(languages: Record<string, string>): string {
+  const candidate = (navigator.language || 'tr').slice(0, 2).toLowerCase();
+  return languages[candidate] ? candidate : 'tr';
+}
+
+function Onboarding({ user, languages, onDone, onCancel }: { user: User; languages: Record<string, string>; onDone: (user: User) => void; onCancel?: () => void }) {
   const [favorite, setFavorite] = useState<UserTeam | null>(user.favorite);
   const [followed, setFollowed] = useState<UserTeam[]>(user.followed || []);
+  const [language, setLanguage] = useState<string>(user.favorite ? user.language : browserLanguage(languages));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   async function save() {
     if (!favorite || saving) return;
     setSaving(true); setError('');
     try {
-      const r = await fetch('/api/me/teams', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ favorite: favorite.id, followed: followed.map(t => t.id) }) });
+      const r = await fetch('/api/me/teams', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ favorite: favorite.id, followed: followed.map(t => t.id), language }) });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || 'Tercihler kaydedilemedi');
       onDone(body.user);
@@ -121,6 +127,11 @@ function Onboarding({ user, onDone, onCancel }: { user: User; onDone: (user: Use
         ? <TeamSearch picked={[...followed.map(t => t.id), ...(favorite ? [favorite.id] : [])]} onPick={team => setFollowed(rows => rows.some(t => t.id === team.id) || rows.length >= 5 || team.id === favorite?.id ? rows : [...rows, team])} placeholder="Takip edilecek takım ara…" />
         : <p className="team-search-note">Takip listesi dolu. Yeni takım eklemek için birini çıkar.</p>}
     </div>
+    <div className="onboard-section">
+      <div className="sidebar-section-title"><span>HABER ÖZETLERİNİN DİLİ</span></div>
+      <select className="language-select" value={language} onChange={e => setLanguage(e.target.value)} aria-label="Haber özetlerinin dili">{Object.entries(languages).map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select>
+      <p className="team-search-note">Kulüp haberlerinin özetleri bu dilde hazırlanır. Kaynak adı ve orijinal bağlantı her haberde korunur.</p>
+    </div>
     {error && <p className="auth-error" role="alert">{error}</p>}
     <div className="onboard-actions">
       {onCancel && <button type="button" className="button secondary" onClick={onCancel}>Vazgeç</button>}
@@ -129,16 +140,19 @@ function Onboarding({ user, onDone, onCancel }: { user: User; onDone: (user: Use
   </div></div>;
 }
 
+const DEFAULT_LANGUAGES: Record<string, string> = { tr: 'Türkçe', en: 'English', de: 'Deutsch', fr: 'Français', es: 'Español', pt: 'Português', it: 'Italiano' };
+
 export default function AuthGate() {
   const [me, setMe] = useState<User | null | undefined>(undefined);
   const [clientId, setClientId] = useState<string | null | undefined>(undefined);
+  const [languages, setLanguages] = useState<Record<string, string>>(DEFAULT_LANGUAGES);
   const [editing, setEditing] = useState(false);
   useEffect(() => {
-    void fetch('/api/config').then(async r => setClientId((await r.json()).googleClientId ?? null)).catch(() => setClientId(null));
+    void fetch('/api/config').then(async r => { const c = await r.json(); setClientId(c.googleClientId ?? null); if (c.languages) setLanguages(c.languages); }).catch(() => setClientId(null));
     void fetch('/api/me', { cache: 'no-store' }).then(async r => setMe(r.ok ? (await r.json()).user : null)).catch(() => setMe(null));
   }, []);
   if (me === undefined || clientId === undefined) return <div className="auth-shell"><div className="auth-card"><Brand /><p className="auth-loading">Oturum kontrol ediliyor…</p></div></div>;
   if (!me) return <Login clientId={clientId} onUser={setMe} />;
-  if (!me.favorite || editing) return <Onboarding user={me} onDone={next => { setMe(next); setEditing(false); }} onCancel={me.favorite ? () => setEditing(false) : undefined} />;
+  if (!me.favorite || editing) return <Onboarding user={me} languages={languages} onDone={next => { setMe(next); setEditing(false); }} onCancel={me.favorite ? () => setEditing(false) : undefined} />;
   return <LiveApp key={me.favorite.id} user={me} onUser={setMe} onEditTeams={() => setEditing(true)} />;
 }

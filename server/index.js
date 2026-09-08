@@ -6,6 +6,7 @@ import { MEDIA_DIR } from './paths.js';
 import { loadStore, upsertUser, createSession, deleteSession, setTeams, publicUser } from './store.js';
 import { verifyGoogleCredential, currentUser, cookieToken, setSessionCookie, clearSessionCookie } from './auth.js';
 import { loadDirectory, refreshDirectory, startDirectory, searchTeams, teamById, directoryInfo } from './teams.js';
+import { SUPPORTED_LANGUAGES, summarizerEnabled } from './summarize.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -18,7 +19,7 @@ app.use('/api', (req, res, next) => {
   }
   next();
 });
-app.get('/api/config', (_req, res) => res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || null }));
+app.get('/api/config', (_req, res) => res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || null, languages: SUPPORTED_LANGUAGES, summaries: summarizerEnabled() }));
 app.post('/api/auth/google', async (req, res) => {
   try {
     const profile = await verifyGoogleCredential(req.body?.credential);
@@ -42,7 +43,9 @@ app.put('/api/me/teams', (req, res) => {
   const followed = [...new Set(requested)].filter(id => id !== favorite.id).map(id => teamById(id)).filter(Boolean);
   if (followed.length !== [...new Set(requested)].filter(id => id !== favorite.id).length) return res.status(400).json({ error: 'Takip listesindeki bir takım dizinde bulunamadı' });
   if (followed.length > 5) return res.status(400).json({ error: 'En fazla 5 takım takip edilebilir' });
-  const updated = setTeams(user.id, favorite, followed);
+  const language = req.body?.language === undefined ? undefined : String(req.body.language);
+  if (language !== undefined && !SUPPORTED_LANGUAGES[language]) return res.status(400).json({ error: 'Desteklenmeyen dil' });
+  const updated = setTeams(user.id, favorite, followed, language);
   res.json({ user: publicUser(updated) });
 });
 app.get('/api/teams', (req, res) => {
