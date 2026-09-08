@@ -6,14 +6,16 @@ Railway servis ayarları:
 
 - Kaynak: `denizbottomup/sports`, dal: `main`; servis: `sports`.
 - Root Directory: `/` (Dockerfile depo kökünde).
-- Builder: Dockerfile; yapılandırma: `/railway.json`.
+- Builder: Dockerfile; Dockerfile Path: `Dockerfile`.
 - Start Command: boş bırakılır; Dockerfile komutu kullanılır.
 - Port: Railway `PORT` değişkenini sağlar; yerel varsayılan `8080`.
 - Healthcheck: `/healthz`.
 - Public Networking: Railway alan adı oluşturulur.
 - Bu örnek sürüm için ek secret, veritabanı veya volume gerekmez.
 
-GitHub kaynağı bağlandığında `main` dalına yapılan push işlemleri otomatik dağıtımı tetikleyebilir. İlk servis bağlantısı için Railway hesabının depoya erişimi olmalıdır.
+GitHub kaynak ayarlarında Auto Deploy açık olmalıdır. `main` dalına yapılan push işlemleri otomatik dağıtımı tetikler. İlk servis bağlantısı için Railway hesabının depoya erişimi olmalıdır.
+
+Railway yeni servisler için `railway.json` / `railway.toml` desteğini kaldırdığı için bu servisin builder, sağlık kontrolü ve yeniden başlatma ayarları servis panelinde tutulur. Depo, çalıştırılabilir Dockerfile ve Nginx yapılandırmasını içerir. [Railway geçiş duyurusu](https://docs.railway.com/config-as-code).
 
 CLI ile mevcut servise manuel dağıtım, bu dizinin üstündeki depo kökünden yapılır:
 
