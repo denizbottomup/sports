@@ -25,6 +25,16 @@ export function parseFixtures(data, league, teamId, now = Date.now()) {
     return [{ id: String(event.id), date: event.date, dateConfirmed: !/TBD|postponed|canceled/i.test(`${status?.detail} ${status?.name}`), status: status?.state === 'in' ? 'live' : /postponed/i.test(status?.name) ? 'postponed' : 'scheduled', competition: league.id, competitionName: league.name, home: own.homeAway === 'home', team: teamFrom(own.team), opponent: teamFrom(other.team), venue: c.venue?.fullName || null, round: event.week?.text || c.groups?.name || '', source: 'ESPN', sourceUrl: safeUrl(event.links?.find(l => l.href?.startsWith('https:'))?.href) || `https://www.espn.com/soccer/team/fixtures/_/id/${teamId}` }];
   });
 }
+export function parseEspnNews(data, teamId) {
+  if (!Array.isArray(data.articles)) throw new Error('Haber yanıtı beklenen biçimde değil');
+  return data.articles.flatMap(article => {
+    const url = safeUrl(article.links?.web?.href);
+    const title = text(article.headline);
+    const summary = text(article.description);
+    if (!url || !title || !summary) return [];
+    return [{ id: idFor(url), title, summary: summary.slice(0, 400), url, image: safeUrl(article.images?.[0]?.url), publishedAt: Number.isFinite(Date.parse(article.published)) ? new Date(article.published).toISOString() : null, datePrecision: 'time', teamId, sourceId: `espn-news-${teamId}`, source: 'ESPN', official: false, readable: true, language: 'en', category: categoryOf(title) }];
+  });
+}
 export function categoryOf(title) {
   const t = fold(title);
   if (/sakat|saglik|cezali|lesao|lesionado|boletim clinico|injur|suspens/.test(t)) return 'squad';

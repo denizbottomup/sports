@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename, readdir, stat, unlink } from 'node:
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { DATA_DIR, MEDIA_DIR } from './paths.js';
-import { idFor, mediaAllowed, parseFixtures, parseRss, parseEspnRoster } from './providers.js';
+import { idFor, mediaAllowed, parseFixtures, parseRss, parseEspnNews, parseEspnRoster } from './providers.js';
 import { articleAllowed, exclusionReason, parseArticle, makeReading, readableNews, parseMatchDetails, parseTrtBroadcast, parseRefereeReport } from './reading.js';
 import { clubRegistry, curatedMatchSources } from './registry.js';
 import { trackedTeamMap, favoriteTeamIds, languagesInUse, accounts, publicUser } from './store.js';
@@ -141,7 +141,7 @@ function addNews(items) {
   state.news = mergeNews(items);
   state.readings ||= {};
   for (const n of items) {
-    if (n.official && !exclusionReason(n) && !state.readings[n.id] && n.summary) {
+    if ((n.official || n.readable) && !exclusionReason(n) && !state.readings[n.id] && n.summary) {
       const reading = makeReading(n, [n.summary]);
       if (reading) state.readings[n.id] = reading;
     }
@@ -153,7 +153,11 @@ function competitionsFor(team) {
 }
 async function refreshFixtures() {
   const teams = tracked();
-  pruneSources(new Set(teams.map(t => t.id)));
+  // Rakip dosyası kaynakları da korunur; aksi halde her turda silinip yeniden kaydedilir,
+  // ETag/backoff kaybolur ve kaynaklar 10 saniyede bir taranarak hız sınırına takılır.
+  const keep = new Set(teams.map(t => t.id));
+  for (const teamId of dossierIds()) for (const fixture of focusOpponents(teamId)) keep.add(fixture.opponent.id);
+  pruneSources(keep);
   const work = [];
   for (const team of teams) {
     for (const league of competitionsFor(team)) {
@@ -188,18 +192,22 @@ function pressSource(team, isOpponent) {
 async function refreshNews() {
   const work = [];
   const wanted = new Map();
-  for (const team of tracked()) wanted.set(team.id, { team, isOpponent: false });
+  for (const team of tracked()) wanted.set(team.id, { team, isOpponent: false, league: team.league });
   for (const teamId of dossierIds()) for (const fixture of focusOpponents(teamId)) {
     const existing = wanted.get(fixture.opponent.id);
-    wanted.set(fixture.opponent.id, { team: existing?.team || fixture.opponent, isOpponent: true });
+    wanted.set(fixture.opponent.id, { team: existing?.team || fixture.opponent, isOpponent: true, league: existing?.league || fixture.competition });
   }
-  for (const { team, isOpponent } of wanted.values()) {
+  for (const { team, isOpponent, league } of wanted.values()) {
     for (const registered of clubRegistry[team.id]?.news || []) {
       const source = { ...registered, teams: [team.id] };
       work.push(sourceFetch(source, body => registered.parse(body, source), addNews));
     }
     const { source, terms } = pressSource(team, isOpponent);
     work.push(sourceFetch(source, body => parseRss(body, source, team.id, terms), addNews));
+    if (league) {
+      const espn = { id: `espn-news-${team.id}`, teams: [team.id], name: `ESPN · ${team.short || team.name}`, kind: 'Haber servisi', url: `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/news?team=${team.id}&limit=20`, publicUrl: `https://www.espn.com/soccer/team/_/id/${team.id}`, official: false, interval: 5 * 60000, language: 'en' };
+      work.push(sourceFetch(espn, body => parseEspnNews(JSON.parse(body), team.id), addNews));
+    }
   }
   await Promise.allSettled(work);
 }
@@ -251,19 +259,26 @@ async function refreshReadings() {
   try {
     state.readings ||= {};
     state.summaries ||= {};
-    const candidates = state.news.filter(n => n.official && articleAllowed(n.url) && !exclusionReason(n) && (articleChecks.get(n.id) || 0) < Date.now() && (!state.readings[n.id] || missingLanguages(n.id).length > 0)).slice(0, 4);
+    const candidates = state.news.filter(n => (n.official || n.readable) && (articleAllowed(n.url) || n.summary) && !exclusionReason(n) && (articleChecks.get(n.id) || 0) < Date.now() && (!state.readings[n.id] || (summarizerEnabled() && missingLanguages(n.id).length > 0))).slice(0, 4);
     await Promise.allSettled(candidates.map(async n => {
       articleChecks.set(n.id, Date.now() + 3600000);
       try {
-        let target = n.url, response;
-        for (let redirects = 0; redirects < 3; redirects++) {
-          if (!articleAllowed(target)) throw new Error('Unsupported article redirect');
-          response = await fetch(target, { redirect: 'manual', signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Touchline/0.4' } });
-          if (response.status >= 300 && response.status < 400) { target = new URL(response.headers.get('location'), target).href; await response.body?.cancel(); continue; }
-          break;
+        let paragraphs = null;
+        if (articleAllowed(n.url)) {
+          let target = n.url, response;
+          for (let redirects = 0; redirects < 3; redirects++) {
+            if (!articleAllowed(target)) throw new Error('Unsupported article redirect');
+            response = await fetch(target, { redirect: 'manual', signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Touchline/0.4' } });
+            if (response.status >= 300 && response.status < 400) { target = new URL(response.headers.get('location'), target).href; await response.body?.cancel(); continue; }
+            break;
+          }
+          if (!response?.ok) throw new Error('Article unavailable');
+          paragraphs = parseArticle((await limitedBody(response, 2 * 1024 * 1024)).toString('utf8'), target);
+        } else if (n.summary) {
+          // Tam metin erişimi olmayan kaynaklarda (ör. ESPN haber servisi) özet metni kullanılır.
+          paragraphs = [n.summary];
         }
-        if (!response?.ok) throw new Error('Article unavailable');
-        const paragraphs = parseArticle((await limitedBody(response, 2 * 1024 * 1024)).toString('utf8'), target);
+        if (!paragraphs) return;
         const reading = makeReading(n, paragraphs);
         if (reading && !state.readings[n.id]) state.readings[n.id] = reading;
         const done = await addSummaries(n, paragraphs);

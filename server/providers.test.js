@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFixtures, parseRss, parseSportingRoster, mediaAllowed, safeUrl } from './providers.js';
+import { parseFixtures, parseRss, parseSportingRoster, parseEspnNews, mediaAllowed, safeUrl } from './providers.js';
 
 test('fixture parser rejects past and completed fixtures and preserves TBD', () => {
   const event = (id, date, completed = false, detail = 'Scheduled') => ({ id, date, competitions: [{ status: { type: { completed, detail } }, competitors: [{ team: { id: '432', displayName: 'Galatasaray' }, homeAway: 'away' }, { team: { id: '2250', displayName: 'Sporting CP' }, homeAway: 'home' }] }] });
@@ -25,4 +25,17 @@ test('image proxy admits only known public image hosts and strips executable URL
 });
 test('changed provider markup is treated as a failure, not an empty successful roster', () => {
   assert.throws(() => parseSportingRoster('<html>Unavailable</html>'), /okunamadı/);
+});
+test('ESPN team news requires headline, description and a safe link', () => {
+  assert.throws(() => parseEspnNews({}, '436'), /beklenen biçimde değil/);
+  const rows = parseEspnNews({ articles: [
+    { headline: 'Fenerbahce edge derby thriller', description: 'A stoppage-time winner settled the Istanbul derby on Sunday night.', published: '2026-09-08T20:00:00Z', links: { web: { href: 'https://www.espn.com/soccer/story/_/id/1' } }, images: [{ url: 'https://a.espncdn.com/photo/1.jpg' }] },
+    { headline: 'No description story', links: { web: { href: 'https://www.espn.com/soccer/story/_/id/2' } } },
+    { headline: 'Bad link', description: 'text', links: { web: { href: 'javascript:alert(1)' } } },
+  ] }, '436');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].teamId, '436');
+  assert.equal(rows[0].readable, true);
+  assert.equal(rows[0].language, 'en');
+  assert.equal(rows[0].official, false);
 });
