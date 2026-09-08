@@ -28,3 +28,12 @@ export const curatedMatchSources = {
     referee: { url: 'https://beinsports.com.tr/haber/galatasaray-sporting-macinin-hakemi-belli-oldu', name: 'beIN SPORTS · Hakem ataması', date: '2026-09-09', mustInclude: ['9 Eylül', 'Sporting'] },
   },
 };
+
+// Türk spor basını RSS kaynakları: doğrudan yayıncı bağlantısı ve özet metni verirler.
+// Haberler takım terimleriyle eşleşerek ilgili takımların akışına dağıtılır.
+export const pressFeeds = [
+  { id: 'trtspor', name: 'TRT Spor', url: 'https://www.trtspor.com.tr/rss/futbol.rss', publicUrl: 'https://www.trtspor.com.tr' },
+  { id: 'fotomac', name: 'Fotomaç', url: 'https://www.fotomac.com.tr/rss/anasayfa.xml', publicUrl: 'https://www.fotomac.com.tr' },
+  { id: 'aspor', name: 'A Spor', url: 'https://www.aspor.com.tr/rss/anasayfa.xml', publicUrl: 'https://www.aspor.com.tr' },
+  { id: 'haberturk', name: 'Habertürk Spor', url: 'https://www.haberturk.com/rss/spor.xml', publicUrl: 'https://www.haberturk.com/spor' },
+];

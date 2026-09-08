@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFixtures, parseRss, parseSportingRoster, parseEspnNews, mediaAllowed, safeUrl } from './providers.js';
+import { parseFixtures, parseRss, parseSportingRoster, parseEspnNews, parsePressFeed, termPattern, mediaAllowed, safeUrl } from './providers.js';
 
 test('fixture parser rejects past and completed fixtures and preserves TBD', () => {
   const event = (id, date, completed = false, detail = 'Scheduled') => ({ id, date, competitions: [{ status: { type: { completed, detail } }, competitors: [{ team: { id: '432', displayName: 'Galatasaray' }, homeAway: 'away' }, { team: { id: '2250', displayName: 'Sporting CP' }, homeAway: 'home' }] }] });
@@ -18,11 +18,24 @@ test('press stories require the opponent in the headline and are not official', 
   const rows = parseRss(xml, { id: 'press', name: 'Basın', official: false }, '2250', ['Sporting']);
   assert.equal(rows.length, 1); assert.equal(rows[0].title, 'Sporting hazırlıkları'); assert.equal(rows[0].source, 'Yayıncı'); assert.equal(rows[0].official, false);
 });
-test('press titleRequire keeps football context and drops city news', () => {
-  const xml = '<rss><channel><item><title>Erzurumspor taraftarina cagri</title><link>https://news.google.com/rss/articles/a</link></item><item><title>Erzurum Buyuksehir Belediyesinden dolandiricilik uyarisi</title><link>https://news.google.com/rss/articles/b</link></item></channel></rss>';
-  const source = { id: 'press-176', name: 'Basın', official: false, titleRequire: /spor|futbol|taraftar/ };
-  const rows = parseRss(xml, source, '176', ['Erzurum']);
-  assert.deepEqual(rows.map(r => r.title), ['Erzurumspor taraftarina cagri']);
+test('press feed items are routed to matching teams with word-boundary aware terms', () => {
+  const xml = '<rss><channel>' +
+    '<item><title>Erzurumspor deplasmanda kazandı</title><link>https://www.trtspor.com.tr/haber/1</link><description>BB Erzurumspor, deplasman galibiyetiyle seriyi sürdürdü ve puanını yükseltti.</description><pubDate>Tue, 08 Sep 2026 12:00:00 GMT</pubDate></item>' +
+    '<item><title>Romantizm filmi vizyona girdi</title><link>https://www.trtspor.com.tr/haber/2</link><description>Sinema dünyasından gelişme.</description></item>' +
+    '<item><title>Galatasaray ve Fenerbahçe zirve yarışında</title><link>https://www.trtspor.com.tr/haber/3</link><description>Süper Lig zirvesinde iki dev takım puan farkını korudu.</description></item>' +
+    '</channel></rss>';
+  const source = { feedId: 'trtspor', name: 'TRT Spor' };
+  const teamTerms = [
+    { teamId: '176', terms: ['erzurumspor'] },
+    { teamId: '432', terms: ['Galatasaray'] },
+    { teamId: '104', terms: ['roma'] },
+  ];
+  const rows = parsePressFeed(xml, source, teamTerms);
+  assert.deepEqual(rows.map(r => [r.teamId, r.title.slice(0, 12)]), [['176', 'Erzurumspor '], ['432', 'Galatasaray ']]);
+  assert.equal(rows[0].readable, true);
+  assert.equal(rows[0].source, 'TRT Spor');
+  assert.ok(termPattern('erzurumspor').test('bb erzurumsporun galibiyeti'));
+  assert.ok(!termPattern('roma').test('romantizm ruzgari'));
 });
 test('image proxy admits only known public image hosts and strips executable URLs', () => {
   assert.equal(mediaAllowed('https://a.espncdn.com/i/teamlogos/soccer/500/432.png'), true);

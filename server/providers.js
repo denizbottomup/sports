@@ -69,6 +69,30 @@ export function parseRss(xml, source, teamId, terms = []) {
     return row ? [row] : [];
   });
 }
+const escapeRegex = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Kısa terimlerde iki taraflı sınır aranır; 5+ harfte Türkçe ekleri yakalamak için sonek serbesttir.
+export function termPattern(term) {
+  const folded = fold(term);
+  return new RegExp(folded.length >= 5 ? `(^|[^a-z0-9])${escapeRegex(folded)}` : `(^|[^a-z0-9])${escapeRegex(folded)}([^a-z0-9]|$)`);
+}
+export function parsePressFeed(xml, source, teamTerms) {
+  if (!/<rss[\s>]/i.test(xml)) throw new Error('RSS yerine farklı bir yanıt alındı');
+  const parsed = new XMLParser({ ignoreAttributes: false, processEntities: true }).parse(xml);
+  const rawItems = parsed.rss?.channel?.item;
+  const items = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+  return items.flatMap(item => {
+    const url = safeUrl(item.link);
+    const title = text(item.title);
+    if (!url || !title) return [];
+    const summary = text(item.description).slice(0, 400);
+    const haystack = fold(`${title} ${summary}`);
+    const publishedAt = Number.isFinite(Date.parse(item.pubDate)) ? new Date(item.pubDate).toISOString() : null;
+    return teamTerms.flatMap(({ teamId, terms }) => {
+      if (!terms.some(term => termPattern(term).test(haystack))) return [];
+      return [{ id: idFor(`${url}#${teamId}`), title, summary, url, image: null, imageSource: null, publishedAt, datePrecision: 'time', teamId, sourceId: `pressfeed-${source.feedId}`, source: source.name, official: false, readable: summary.length > 40, language: 'tr', category: categoryOf(title) }];
+    });
+  });
+}
 export function parseSportingNews(html, source) {
   const $ = load(html);
   const rows = [];

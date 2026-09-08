@@ -7,7 +7,7 @@ Seçtiğin takımın sıradaki lig ve Avrupa rakibi için gerçek fikstür, habe
 - Google ile giriş zorunludur. İlk girişte favori takım seçilir; en fazla 5 takımlık ayrı bir takip listesi tutulabilir. Tercihler sunucuda hesapta saklanır.
 - Takım dizini ESPN lig listelerinden gelir: Süper Lig, Premier League, LaLiga, Bundesliga, Serie A, Ligue 1 ve Primeira Liga. Rakip dosyası favori takım için hazırlanır; takip listesindeki takımların fikstürü ve haberleri akışa eklenir.
 - Favori takımın yaklaşan maçları ESPN fikstür kaynağından alınır; sıradaki maç tarihe göre belirlenir.
-- Sıradaki lig ve Avrupa rakibinin haberleri resmî kulüp kaynakları ve Google News RSS üzerinden toplanır. Kaynak ve yayın tarihi gösterilir.
+- Haberler resmî kulüp kaynakları, ESPN takım haber servisi ve Türk spor basınının RSS'lerinden (TRT Spor, Fotomaç, A Spor, Habertürk Spor) toplanır; basın haberleri takım adı eşleşmesiyle ilgili takımlara dağıtılır. Kaynak ve yayın tarihi gösterilir.
 - Resmî kaynak kaydı olan kulüplerde (şimdilik Galatasaray ve Sporting CP, `server/registry.js`) kulüp sitesi/RSS akışı kullanılır; kadro ve oyuncu fotoğrafları resmî siteden gelir. Kayıtsız kulüplerde ESPN kadro verisi ve Türkçe basın dizini kullanılır; olmayan fotoğraf üretilmez. Resmî akışı bağlı olmayan takımlarda okunabilir metin şartı nedeniyle haber akışı ince kalabilir; kapsam kayıt defteri genişledikçe artar.
 - Kulüp logoları ve kaynak görselleri sunucuda önbelleğe alınır.
 - Kaynaklar 30–60 saniyelik haber, 15 dakikalık fikstür ve 4 saatlik kadro aralıklarıyla kontrol edilir. Yeni veriler açık tarayıcıya SSE ile iletilir; yayıncı gecikmesi bu sürelere dahil değildir.
