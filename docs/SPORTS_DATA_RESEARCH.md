@@ -138,3 +138,39 @@ Yeni kapsam: Taraftar nabzı için sosyal medya artık araştırılacak ana veri
 6. En az bir maç haftasında güncellik, kaçırılan gelişmeler, yanlış takım eşleşmeleri, tekrar oranı ve istek tüketimini ölç. Ücretli API ve X kararını ölçülen eksiklere göre ver.
 
 Pilot kabul ölçütleri: kaynak/yorum ayrımı, kaynak kesintisinin görünmesi, aynı gelişmenin tekrar kart üretmemesi, bildirim veya sorgu sonrasında dosyanın otomatik yenilenmesi, bağlantı kesildikten sonra kaçırılan kayıtların tamamlanması. Gecikme hedefi ilk ölçümlerden sonra kaynak türüne göre belirlenecek.
+
+## Oyuncu verisi araştırması: Opta, Football Manager ve açık alternatifler
+
+Araştırma tarihi: 9 Eylül 2026. Soru: oyuncu düzeyinde detaylı analiz için Opta verisi alınabilir mi, Football Manager veri seti kullanılabilir mi, hangi açık kaynaklar var?
+
+### Opta (Stats Perform)
+
+- Halka açık fiyat veya ücretsiz katman yok; yalnızca kurumsal satış, kapsam (lig/ülke/veri seviyesi) bazlı özel teklif. Başvuru satış ekibi üzerinden yapılıyor. [Fiyat/lisans SSS](https://www.statsperform.com/stats-perform-faqs-pricing-and-licensing/), [API/teslimat SSS](https://www.statsperform.com/stats-perform-faqs-apis-and-data-delivery/)
+- Ocak 2026'da Stats Perform, FBref'in Opta lisansını sonlandırdı ve gelişmiş istatistiklerin siteden kaldırılmasını istedi; ücretsiz Opta türevi verinin alanı daralıyor. [2026 kaynak durumu](https://www.liamhenshaw.com/writing/where-to-find-football-data)
+- Karar: bu aşamada alınamaz varsayılacak. Sofascore/FotMob/WhoScored gibi Opta lisanslı yüzeylerin kazınması hem onların hem Opta'nın haklarını ihlal eder; yapılmayacak. Ölçek ve bütçe oluştuğunda doğrudan Stats Perform görüşmesi ayrı bir iş kalemidir.
+
+### Football Manager veri seti
+
+- SI'ın veri lisans sözleşmesi ("Data Supply Terms", Kasım 2024) alıcıyı açıkça "profesyonel bir futbol kulübünün yönetiminden sorumlu" kuruluş olarak tanımlıyor; sınırlı amaç, ücretli, yeniden dağıtım ve üçüncü taraf kullanımı yasak. Tüketici uygulaması bu kanaldan lisans alamaz. [Lisans metni](https://cdn.sports-interactive.com/site/2024-11/SI%20-%20FMDB%20Portal%20-%20Data%20Supply%20License%20Terms%20-%2015%20November%202024%20-%20JC%20(FINAL).pdf)
+- SEGA hukuk, FM oyuncu niteliklerini yayımlayan toplulukları (ör. FMInside) kaldırtmış durumda; SI ayrıca kendi tüketici uygulamasını (FMdB Football Scout) çıkardı, yani bu veri onların ürünü. [FMInside duyurusu](https://fminside.net/news/739-player-database-attributes), [FMdB haberi](https://www.pcgamer.com/fmdb-mobile-app-brings-football-managers-full-database-to-your-pocket/)
+- Karar: FM verisi (Kaggle kopyaları dahil) kullanılmayacak. "FM hissi" veren oyuncu profili, lisanslı istatistiklerden ürettiğimiz yapay zeka scout raporuyla sağlanacak; bu özgün içeriktir ve telif sorunu doğurmaz.
+
+### Kullanılabilir kaynaklar
+
+| Kaynak | Ne veriyor | Lisans/erişim | Karar |
+|---|---|---|---|
+| API-Football (mevcut anahtar) | Oyuncu sezon istatistikleri: maç/dakika, gol/asist, şut, pas isabeti, kilit pas, top kapma, ikili mücadele, çalım, faul, kart, penaltı, reyting; ayrıca sakatlık geçmişi, transfer geçmişi, kupalar | Ücretsiz 100 istek/gün; Pro 19 USD/ay 7.500 istek/gün | Oyuncu detay sayfasının ana kaynağı. Kadro zaten buradan geliyor; oyuncu kartına tıklayınca detay + AI scout raporu. xG alanı lig bazında tutarsız, vaat edilmeyecek. |
+| StatsBomb Open Data | Ücretsiz maç-olay verisi (Dünya Kupaları, EURO'lar, seçili lig sezonları), JSON | GitHub'da açık; yayın halinde StatsBomb atfı ve logosu şart | Canlı Süper Lig verisi değil; radar/persentil metodolojimizi geliştirip doğrulamak için araştırma seti. [Repo](https://github.com/statsbomb/open-data) |
+| Wikipedia/Wikidata | Oyuncu biyografisi, kariyer geçmişi, milli takım | Açık lisans (CC) | Oyuncu profilinde arka plan bilgisi için serbest zenginleştirme. |
+| Understat | Büyük 5 lig xG | Resmî API yok, kazıma | Üründe kullanılmayacak; yalnızca dahili kıyas. |
+| FBref | Tarihsel gelişmiş istatistik | Opta verisi kaldırıldı (Oca 2026), kazıma engelli | Kaynak olarak elendi. |
+| TFF | Ceza/PFDK, tescil, TR oyuncu kayıtları | Kamu sayfaları, yapı eski (postback) | Künye doğrulaması için aday; otomasyon kırılgan, öncelik değil. |
+
+### Önerilen yol: "Oyuncu dosyası" özelliği
+
+1. Faz 1 (mevcut altyapıyla): kadro kartından oyuncu detayına geçiş. API-Football `players` + `sidelined` + `transfers` + `trophies` uçları; takım bazında önbellek (4-12 saat). Claude ile kullanıcının dilinde 2-3 paragraflık scout raporu: güçlü/zayıf yönler yalnızca eldeki istatistiklerden, uydurma nitelik puanı yok.
+2. Faz 2: sezon istatistiklerinden lig içi persentil/radar hesapları (kendi hesabımız, StatsBomb açık verisiyle metodoloji doğrulaması).
+3. Faz 3 (ölçek sonrası): Stats Perform/Opta veya Sportmonks üst paket görüşmesi; ancak ürün-pazar uyumu kanıtlanınca.
+
+Maliyet notu: oyuncu detayına tıklama başına 1-3 API-Football isteği + önbellek ile ücretsiz plan başlangıç için yeterli; günlük aktif kullanım artarsa Pro (19 USD/ay) ilk yükseltme adımı.
+
